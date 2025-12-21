@@ -1,77 +1,73 @@
 # Renovate Initializr
 
-Generate a ready-to-use `renovate.json` and explore common options.
+A small web app that helps you create a clear, best‑practice `renovate.json` without reading the entire Renovate docs. Pick your preferences, preview the JSON live, and download the file for your repo.
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+**Why**: Renovate is powerful but configuration can feel overwhelming. This tool gives teams a sensible starting point with opinionated defaults and explainers for common options.
 
-## Setup
+## What It Does
 
-Make sure to install dependencies:
+- Builds a `renovate.json` from guided choices with live preview
+- Starts from safe defaults: `config:recommended`, vulnerability alerts, dependency dashboard
+- Adds semantic commits, timezone, schedules, PR limits, and rebase strategy
+- Sets automerge policies (level, type) with sensible safeguards
+- Groups updates by package manager to reduce PR noise
+- Generates a downloadable `renovate.json` to commit in your repo root
 
-```bash
-# npm
+## Quick Start
+
+1) Install dependencies
+
+```
 npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
 ```
 
-## Development Server
+2) Run the app locally
 
-Start the development server on `http://localhost:3000`:
-
-```bash
-# npm
+```
 npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
 ```
 
-## Production
+3) Open `http://localhost:3000`, choose options, click “Generate renovate.json”, and commit the downloaded file to your repository root.
 
-Build the application for production:
+## Configuration Defaults
 
-```bash
-# npm
-npm run build
+The generator includes these by default:
 
-# pnpm
-pnpm build
+- **Extends**: `config:recommended`, `:enableVulnerabilityAlerts`, `:dependencyDashboard`
+- **Semantic Commits**: enabled by default (toggleable)
+- **Timezone**: configurable so schedules align to your local time
+- **Schedules**: presets for weekly, monthly, weekends, or outside business hours
+- **PR Limits**: pick conservative, default, or active limits to control PR volume
+- **Rebasing**: choose when Renovate should rebase update branches
+- **Version Ranges**: control range strategy (auto, bump, replace, pin, update-lockfile)
+- **Automerge**: set level (disabled/patch/minor/all) and type (PR/branch/PR comment)
+- **Safeguards**: optional rule to avoid automerging `0.x` updates
+- **Lock File Maintenance**: enable + schedule + optional automerge
+- **Vulnerability Alerts**: labels, schedule override, and automerge options
+- **Grouping**: group updates by package manager (npm, Docker, Maven, Gradle, pip, Composer, Helm, GitHub Actions, Terraform, Go, Cargo, Bundler, NuGet)
 
-# yarn
-yarn build
+All selections are reflected in the live preview and exported JSON.
 
-# bun
-bun run build
-```
+## Typical Workflow
 
-Locally preview production build:
+- Start with the defaults, then adjust schedule/timezone to match your team
+- Pick a PR limit strategy that suits your review capacity and CI
+- Enable automerge for low‑risk updates (e.g., `patch` or `minor`) and consider a safeguard for pre‑1.0.0
+- Group by package manager to dramatically reduce PR noise
+- Download and commit `renovate.json`, then let Renovate open its onboarding PR
 
-```bash
-# npm
-npm run preview
+## Who This Is For
 
-# pnpm
-pnpm preview
+- Teams new to Renovate who want a safe starting point
+- Experienced users who want to standardize Renovate across repos
+- Anyone who prefers an interactive, documented way to build `renovate.json`
 
-# yarn
-yarn preview
+## Non‑Goals
 
-# bun
-bun run preview
-```
+- Not a complete replacement for the Renovate documentation
+- Does not cover every advanced edge case or manager‑specific knob
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+## Contributing
+
+Issues and PRs welcome. If you see confusing defaults or missing options that many teams would benefit from, please open a discussion.
+
