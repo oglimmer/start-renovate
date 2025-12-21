@@ -801,7 +801,7 @@
                   or breaking changes. Lets early adopters discover issues first. Particularly valuable for production dependencies.
                 </p>
                 <p class="text-xs text-gray-600">
-                  <strong>Note:</strong> Security vulnerability alerts automatically bypass this delay to ensure rapid patching.
+                  <strong>Security Best Practice:</strong> This configuration will automatically include a rule to bypass the delay for vulnerability alerts, ensuring critical security patches are applied immediately.
                 </p>
               </div>
             </div>
@@ -1385,6 +1385,15 @@ const generatedConfig = computed(() => {
       '14-days': '14 days'
     }
     configObject.minimumReleaseAge = ageMap[config.value.minimumReleaseAge]
+
+    // Security best practice: Explicitly bypass minimumReleaseAge for vulnerability alerts
+    // This ensures security patches are applied immediately regardless of the age delay
+    configObject.packageRules = configObject.packageRules || []
+    configObject.packageRules.push({
+      description: 'Security updates should not wait for release age',
+      isVulnerabilityAlert: true,
+      minimumReleaseAge: '0 days'
+    })
   }
 
   // Add lockFileMaintenance if enabled
