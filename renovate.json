@@ -1,0 +1,103 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":enableVulnerabilityAlerts",
+    ":dependencyDashboard",
+    ":semanticCommits"
+  ],
+  "timezone": "Europe/Berlin",
+  "prHourlyLimit": 10,
+  "prConcurrentLimit": 5,
+  "rebaseWhen": "behind-base-branch",
+  "separateMinorPatch": true,
+  "rangeStrategy": "bump",
+  "automergeType": "branch",
+  "ignoreTests": true,
+  "labels": ["dependencies"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true
+  },
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"],
+    "automerge": true
+  },
+  "packageRules": [
+    {
+      "description": "Automatically merge minor and patch-level updates for production dependencies",
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchDepTypes": ["dependencies"],
+      "automerge": true
+    },
+    {
+      "description": "Disable automerge for major updates",
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
+    {
+      "description": "Group Vue ecosystem packages",
+      "groupName": "Vue ecosystem",
+      "matchPackageNames": ["/^vue/", "/^@vue//", "/^@vitejs/plugin-vue/"]
+    },
+    {
+      "description": "Group Vite and related build tools",
+      "matchPackageNames": ["vite", "vite-plugin-vue-devtools"],
+      "groupName": "Vite"
+    },
+    {
+      "description": "Group testing packages",
+      "matchPackageNames": [
+        "jsdom",
+        "@types/jsdom",
+        "/^vitest/",
+        "/^@vitest//",
+        "/^@playwright//"
+      ],
+      "groupName": "testing tools"
+    },
+    {
+      "description": "Group ESLint and Prettier packages",
+      "groupName": "linting and formatting",
+      "matchPackageNames": [
+        "/^eslint/",
+        "/^@vue/eslint-config-/",
+        "/^prettier/"
+      ]
+    },
+    {
+      "description": "Group TypeScript and related packages",
+      "groupName": "TypeScript",
+      "matchPackageNames": ["/^typescript/", "/^@types//", "/^@tsconfig//"]
+    },
+    {
+      "description": "Group all npm dev dependencies",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "dev dependencies (non-major)"
+    },
+    {
+      "description": "Disable automerge and group pre-1.0 packages",
+      "matchCurrentVersion": "/^0\\./",
+      "automerge": false,
+      "groupName": "unstable (0.x) dependencies"
+    },
+    {
+      "description": "Pin GitHub Actions to commit SHA for security",
+      "matchManagers": ["github-actions"],
+      "pinDigests": true
+    },
+    {
+      "description": "Security updates should merge immediately",
+      "matchUpdateTypes": ["patch"],
+      "matchCurrentVersion": "/.*/",
+      "vulnerabilityAlerts": {
+        "enabled": true
+      },
+      "automerge": true,
+      "schedule": ["at any time"],
+      "matchPackageNames": ["*"]
+    }
+  ]
+}
