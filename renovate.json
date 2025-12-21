@@ -39,11 +39,7 @@
   ],
   "ignoreTests": true,
   "lockFileMaintenance": {
-    "enabled": true,
-    "schedule": [
-      "at any time"
-    ],
-    "automerge": true
+    "enabled": false
   },
   "vulnerabilityAlerts": {
     "labels": [
