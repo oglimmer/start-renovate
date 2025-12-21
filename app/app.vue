@@ -698,6 +698,115 @@
             </div>
           </div>
 
+          <!-- Minimum Release Age Option -->
+          <div class="border border-gray-200 rounded-lg p-6 mb-4 hover:shadow-md transition-shadow">
+            <div>
+              <label class="text-lg font-medium text-gray-900 block mb-2">
+                Minimum Release Age
+              </label>
+              <p class="text-sm text-gray-600 mb-4">
+                Wait a specified period after a new version is released before Renovate creates an update PR.
+                Helps avoid cutting-edge releases that might be unstable.
+              </p>
+
+              <div class="space-y-3">
+                <!-- Never Option -->
+                <div class="flex items-start">
+                  <input
+                    type="radio"
+                    id="release-age-never"
+                    value="never"
+                    v-model="config.minimumReleaseAge"
+                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  />
+                  <div class="ml-3 flex-1">
+                    <label for="release-age-never" class="font-medium text-gray-900 cursor-pointer">
+                      No Delay
+                    </label>
+                    <p class="text-sm text-gray-600">
+                      Update to new releases immediately. Renovate's default behavior.
+                      Get updates as soon as they're available.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- 3 Days Option -->
+                <div class="flex items-start">
+                  <input
+                    type="radio"
+                    id="release-age-3"
+                    value="3-days"
+                    v-model="config.minimumReleaseAge"
+                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  />
+                  <div class="ml-3 flex-1">
+                    <label for="release-age-3" class="font-medium text-gray-900 cursor-pointer">
+                      3 Days
+                    </label>
+                    <p class="text-sm text-gray-600">
+                      Wait 3 days after release. Short stabilization period to catch immediate bugs.
+                      Good balance for most teams.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- 7 Days Option -->
+                <div class="flex items-start">
+                  <input
+                    type="radio"
+                    id="release-age-7"
+                    value="7-days"
+                    v-model="config.minimumReleaseAge"
+                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  />
+                  <div class="ml-3 flex-1">
+                    <label for="release-age-7" class="font-medium text-gray-900 cursor-pointer">
+                      7 Days (1 Week)
+                    </label>
+                    <p class="text-sm text-gray-600">
+                      Wait 1 week after release. Gives the community time to discover issues.
+                      Recommended for stability-focused teams.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- 14 Days Option -->
+                <div class="flex items-start">
+                  <input
+                    type="radio"
+                    id="release-age-14"
+                    value="14-days"
+                    v-model="config.minimumReleaseAge"
+                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  />
+                  <div class="ml-3 flex-1">
+                    <label for="release-age-14" class="font-medium text-gray-900 cursor-pointer">
+                      14 Days (2 Weeks)
+                    </label>
+                    <p class="text-sm text-gray-600">
+                      Wait 2 weeks after release. Conservative approach for maximum stability.
+                      Best for risk-averse production environments.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded">
+                <p class="mb-2">
+                  <strong class="text-gray-700">What it does:</strong> Delays update PRs until a package version has been
+                  published for at least the specified duration. The timer starts from the package registry's published timestamp.
+                </p>
+                <p class="mb-2">
+                  <strong class="text-gray-700">Why you want this:</strong> Reduces risk of adopting releases with critical bugs
+                  or breaking changes. Lets early adopters discover issues first. Particularly valuable for production dependencies.
+                </p>
+                <p class="text-xs text-gray-600">
+                  <strong>Note:</strong> Security vulnerability alerts automatically bypass this delay to ensure rapid patching.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <!-- Lock File Maintenance Option -->
           <div class="border border-gray-200 rounded-lg p-6 mb-4 hover:shadow-md transition-shadow">
             <div>
@@ -1071,6 +1180,7 @@ interface RenovateConfig {
   automergeDevDependencies: boolean
   ignoreTests: boolean
   disablePreOneAutomerge: boolean
+  minimumReleaseAge: 'never' | '3-days' | '7-days' | '14-days'
   lockFileMaintenance: {
     enabled: boolean
     automerge: boolean
@@ -1109,6 +1219,7 @@ const config = ref<RenovateConfig>({
   automergeDevDependencies: false,
   ignoreTests: false,
   disablePreOneAutomerge: true,
+  minimumReleaseAge: 'never',
   lockFileMaintenance: {
     enabled: true,
     automerge: true
@@ -1264,6 +1375,16 @@ const generatedConfig = computed(() => {
   // Add ignoreTests if enabled
   if (config.value.ignoreTests) {
     configObject.ignoreTests = true
+  }
+
+  // Add minimumReleaseAge if not default
+  if (config.value.minimumReleaseAge !== 'never') {
+    const ageMap: Record<string, string> = {
+      '3-days': '3 days',
+      '7-days': '7 days',
+      '14-days': '14 days'
+    }
+    configObject.minimumReleaseAge = ageMap[config.value.minimumReleaseAge]
   }
 
   // Add lockFileMaintenance if enabled
