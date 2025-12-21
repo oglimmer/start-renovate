@@ -107,7 +107,7 @@
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
               >
                 <option value="at-any-time">At Any Time - Default</option>
-                <option value="weekly">Once per Week (Monday before 5am) - Recommended</option>
+                <option value="weekly">Once per Week (Monday before 5am)</option>
                 <option value="monthly">Once per Month (First day before 5am)</option>
                 <option value="weekends">Weekends Only</option>
                 <option value="outside-business-hours">Outside Business Hours (Evenings + Weekends)</option>
@@ -150,7 +150,7 @@
                   />
                   <div class="ml-3 flex-1">
                     <label for="pr-default" class="font-medium text-gray-900 cursor-pointer">
-                      Balanced (Recommended)
+                      Balanced
                     </label>
                     <p class="text-sm text-gray-600">
                       Renovate's default settings: Up to 2 PRs per hour, max 10 open PRs at once.
@@ -236,7 +236,7 @@
                   />
                   <div class="ml-3 flex-1">
                     <label for="rebase-auto" class="font-medium text-gray-900 cursor-pointer">
-                      Smart (Recommended)
+                      Smart
                     </label>
                     <p class="text-sm text-gray-600">
                       Renovate's default: Auto-detects the best strategy. Keeps branches up-to-date if automerge is enabled or your repo requires it.
@@ -339,7 +339,7 @@
                   />
                   <div class="ml-3 flex-1">
                     <label for="range-auto" class="font-medium text-gray-900 cursor-pointer">
-                      Smart (Recommended)
+                      Smart
                     </label>
                     <p class="text-sm text-gray-600">
                       Let Renovate decide the best strategy based on your project type and dependencies.
@@ -463,7 +463,7 @@
                   />
                   <div class="ml-3 flex-1">
                     <label for="automerge-pr" class="font-medium text-gray-900 cursor-pointer">
-                      Pull Request (Recommended)
+                      Pull Request
                     </label>
                     <p class="text-sm text-gray-600">
                       Create PRs and automerge them after tests pass. Full visibility with notifications.
@@ -548,7 +548,7 @@
                   />
                   <div class="ml-3 flex-1">
                     <label for="automerge-disabled" class="font-medium text-gray-900 cursor-pointer">
-                      Disabled (Recommended)
+                      Disabled
                     </label>
                     <p class="text-sm text-gray-600">
                       No automatic merging. All updates require manual review and approval.
