@@ -719,28 +719,8 @@
                 </div>
               </div>
 
-              <!-- Schedule Selection -->
+              <!-- Automerge Checkbox -->
               <div v-if="config.lockFileMaintenance.enabled" class="ml-8 space-y-4">
-                <div>
-                  <label for="lockfile-schedule" class="block text-sm font-medium text-gray-900 mb-2">
-                    Schedule
-                  </label>
-                  <select
-                    id="lockfile-schedule"
-                    v-model="config.lockFileMaintenance.schedule"
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-                  >
-                    <option value="default">Weekly on Monday (before 5am) - Default</option>
-                    <option value="weekly-weekend">Weekly on Sunday (after 9pm)</option>
-                    <option value="monthly">Monthly on first Sunday</option>
-                    <option value="weeknights">Weeknights (after 10pm, before 6am)</option>
-                  </select>
-                  <p class="text-xs text-gray-600 mt-1">
-                    When to regenerate lock files. Default is weekly on Monday before 5am.
-                  </p>
-                </div>
-
-                <!-- Automerge Checkbox -->
                 <div class="flex items-start">
                   <input
                     type="checkbox"
@@ -1093,7 +1073,6 @@ interface RenovateConfig {
   disablePreOneAutomerge: boolean
   lockFileMaintenance: {
     enabled: boolean
-    schedule: 'default' | 'weekly-weekend' | 'monthly' | 'weeknights'
     automerge: boolean
   }
   vulnerabilityAlerts: {
@@ -1132,7 +1111,6 @@ const config = ref<RenovateConfig>({
   disablePreOneAutomerge: true,
   lockFileMaintenance: {
     enabled: true,
-    schedule: 'default',
     automerge: true
   },
   vulnerabilityAlerts: {
@@ -1294,14 +1272,12 @@ const generatedConfig = computed(() => {
       enabled: true
     }
 
-    // Add schedule if not default
-    if (config.value.lockFileMaintenance.schedule !== 'default') {
-      const scheduleMap: Record<string, string> = {
-        'weekly-weekend': 'after 9pm on sunday',
-        'monthly': 'before 5am on the first day of the month',
-        'weeknights': 'after 10pm every weekday,before 6am every weekday'
-      }
-      configObject.lockFileMaintenance.schedule = [scheduleMap[config.value.lockFileMaintenance.schedule]]
+    // Copy global schedule to lockFileMaintenance (it doesn't inherit automatically)
+    if (configObject.schedule) {
+      configObject.lockFileMaintenance.schedule = configObject.schedule
+    } else {
+      // If no global schedule set, use "at any time" to override the default weekly schedule
+      configObject.lockFileMaintenance.schedule = ['at any time']
     }
 
     // Add automerge if enabled
