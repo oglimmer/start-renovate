@@ -82,15 +82,6 @@
                   <strong class="text-gray-700">What it does:</strong> Sets the timezone for Renovate's schedule. When you configure
                   schedules (like "run updates only during weekends" or "between 10pm-6am"), times are interpreted using this timezone.
                 </p>
-                <p class="mb-2">
-                  <strong class="text-gray-700">Why you want this:</strong>
-                </p>
-                <ul class="list-disc ml-5 space-y-1">
-                  <li>Makes schedule configuration more intuitive by using your local time instead of UTC</li>
-                  <li>Ensures updates happen during your preferred hours (e.g., outside business hours)</li>
-                  <li>Helps coordinate Renovate runs with your team's working hours</li>
-                  <li>Reduces noise by scheduling PRs when you're most likely to review them</li>
-                </ul>
               </div>
             </div>
           </div>
