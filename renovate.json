@@ -1,5 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "_comment": "This Renovate configuration automates dependency updates with smart defaults. It groups updates by package manager, auto-merges safe updates (minor/patch), handles security vulnerabilities immediately, and maintains lock files. This keeps your dependencies current with minimal manual intervention while preventing breaking changes from auto-merging (0.x versions stay manual). Why you want this: automatic security patches, reduced maintenance burden, consistent update strategy, and a dependency dashboard to track everything in one place.",
   "extends": [
     "config:recommended",
     ":enableVulnerabilityAlerts",

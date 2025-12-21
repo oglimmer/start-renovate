@@ -11,17 +11,41 @@
           <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
             <div class="flex">
               <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                <svg class="h-5 w-5 text-blue-500 mt-1" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
                 </svg>
               </div>
-              <div class="ml-3">
-                <p class="text-sm text-blue-700">
-                  <strong>Default Configuration:</strong> Your renovate.json will include recommended settings:
-                  <code class="bg-white px-2 py-1 rounded text-xs ml-1">config:recommended</code>,
-                  <code class="bg-white px-2 py-1 rounded text-xs ml-1">:enableVulnerabilityAlerts</code>, and
-                  <code class="bg-white px-2 py-1 rounded text-xs ml-1">:dependencyDashboard</code>
-                </p>
+              <div class="ml-3 flex-1">
+                <h3 class="text-sm font-bold text-blue-900 mb-3">Default Configuration Included</h3>
+                <div class="space-y-3 text-sm text-blue-800">
+                  <div>
+                    <p class="mb-1">
+                      <strong class="text-blue-900">What it does:</strong> Your renovate.json will automatically include these baseline presets:
+                    </p>
+                    <ul class="list-disc ml-5 space-y-1">
+                      <li>
+                        <code class="bg-white px-1.5 py-0.5 rounded text-xs">config:recommended</code> - Sensible defaults for most projects: pin GitHub Actions to digests, group monorepo packages, use semantic commit messages for major updates, and more.
+                      </li>
+                      <li>
+                        <code class="bg-white px-1.5 py-0.5 rounded text-xs">:enableVulnerabilityAlerts</code> - Automatically creates PRs for security vulnerabilities detected by your platform's security advisories (GitHub Dependabot, GitLab, etc.).
+                      </li>
+                      <li>
+                        <code class="bg-white px-1.5 py-0.5 rounded text-xs">:dependencyDashboard</code> - Creates a special issue that lists all pending updates, rate-limited updates, and provides manual approval controls.
+                      </li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p class="mb-1">
+                      <strong class="text-blue-900">Why you want this:</strong>
+                    </p>
+                    <ul class="list-disc ml-5 space-y-1">
+                      <li>Provides battle-tested defaults refined by thousands of users</li>
+                      <li>Ensures security vulnerabilities are addressed immediately with dedicated PRs</li>
+                      <li>Gives you a centralized dashboard to see all dependency updates at a glance</li>
+                      <li>Prevents common pitfalls and follows best practices out of the box</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
