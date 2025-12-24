@@ -56,11 +56,11 @@
           <div class="border border-gray-200 rounded-lg p-6 mb-4 hover:shadow-md transition-shadow">
             <div class="flex items-start">
               <input
-                type="checkbox"
                 id="semanticCommits"
                 v-model="config.semanticCommits"
+                type="checkbox"
                 class="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
+              >
               <div class="ml-4 flex-1">
                 <label for="semanticCommits" class="text-lg font-medium text-gray-900 cursor-pointer">
                   Enable Semantic Commits
@@ -157,12 +157,12 @@
                 <!-- Default Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="pr-default"
-                    value="default"
                     v-model="config.prLimitStrategy"
+                    type="radio"
+                    value="default"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="pr-default" class="font-medium text-gray-900 cursor-pointer">
                       Balanced
@@ -177,12 +177,12 @@
                 <!-- Conservative Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="pr-conservative"
-                    value="conservative"
                     v-model="config.prLimitStrategy"
+                    type="radio"
+                    value="conservative"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="pr-conservative" class="font-medium text-gray-900 cursor-pointer">
                       Minimal Noise
@@ -197,12 +197,12 @@
                 <!-- Active Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="pr-active"
-                    value="active"
                     v-model="config.prLimitStrategy"
+                    type="radio"
+                    value="active"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="pr-active" class="font-medium text-gray-900 cursor-pointer">
                       Fast Updates
@@ -243,12 +243,12 @@
                 <!-- Auto Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="rebase-auto"
-                    value="auto"
                     v-model="config.rebaseWhen"
+                    type="radio"
+                    value="auto"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="rebase-auto" class="font-medium text-gray-900 cursor-pointer">
                       Smart
@@ -262,12 +262,12 @@
                 <!-- Conflicted Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="rebase-conflicted"
-                    value="conflicted"
                     v-model="config.rebaseWhen"
+                    type="radio"
+                    value="conflicted"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="rebase-conflicted" class="font-medium text-gray-900 cursor-pointer">
                       Only When Conflicted
@@ -282,12 +282,12 @@
                 <!-- Behind Base Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="rebase-behind"
-                    value="behind-base-branch"
                     v-model="config.rebaseWhen"
+                    type="radio"
+                    value="behind-base-branch"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="rebase-behind" class="font-medium text-gray-900 cursor-pointer">
                       Always Keep Up-to-Date
@@ -302,12 +302,12 @@
                 <!-- Never Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="rebase-never"
-                    value="never"
                     v-model="config.rebaseWhen"
+                    type="radio"
+                    value="never"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="rebase-never" class="font-medium text-gray-900 cursor-pointer">
                       Manual Only
@@ -346,12 +346,12 @@
                 <!-- Auto Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="range-auto"
-                    value="auto"
                     v-model="config.rangeStrategy"
+                    type="radio"
+                    value="auto"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="range-auto" class="font-medium text-gray-900 cursor-pointer">
                       Smart
@@ -365,12 +365,12 @@
                 <!-- Replace Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="range-replace"
-                    value="replace"
                     v-model="config.rangeStrategy"
+                    type="radio"
+                    value="replace"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="range-replace" class="font-medium text-gray-900 cursor-pointer">
                       Replace When Needed
@@ -385,12 +385,12 @@
                 <!-- Bump Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="range-bump"
-                    value="bump"
                     v-model="config.rangeStrategy"
+                    type="radio"
+                    value="bump"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="range-bump" class="font-medium text-gray-900 cursor-pointer">
                       Always Bump Range
@@ -405,12 +405,12 @@
                 <!-- Update Lockfile Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="range-lockfile"
-                    value="update-lockfile"
                     v-model="config.rangeStrategy"
+                    type="radio"
+                    value="update-lockfile"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="range-lockfile" class="font-medium text-gray-900 cursor-pointer">
                       Lockfile Only
@@ -425,12 +425,12 @@
                 <!-- Pin Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="range-pin"
-                    value="pin"
                     v-model="config.rangeStrategy"
+                    type="radio"
+                    value="pin"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="range-pin" class="font-medium text-gray-900 cursor-pointer">
                       Pin to Exact Versions
@@ -470,12 +470,12 @@
                 <!-- PR Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="automerge-pr"
-                    value="pr"
                     v-model="config.automergeType"
+                    type="radio"
+                    value="pr"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="automerge-pr" class="font-medium text-gray-900 cursor-pointer">
                       Pull Request
@@ -490,12 +490,12 @@
                 <!-- Branch Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="automerge-branch"
-                    value="branch"
                     v-model="config.automergeType"
+                    type="radio"
+                    value="branch"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="automerge-branch" class="font-medium text-gray-900 cursor-pointer">
                       Silent Branch Merge
@@ -510,12 +510,12 @@
                 <!-- PR Comment Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="automerge-comment"
-                    value="pr-comment"
                     v-model="config.automergeType"
+                    type="radio"
+                    value="pr-comment"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="automerge-comment" class="font-medium text-gray-900 cursor-pointer">
                       External Merge Bot
@@ -555,12 +555,12 @@
                 <!-- Disabled Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="automerge-disabled"
-                    value="disabled"
                     v-model="config.automergeLevel"
+                    type="radio"
+                    value="disabled"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="automerge-disabled" class="font-medium text-gray-900 cursor-pointer">
                       Disabled
@@ -575,12 +575,12 @@
                 <!-- Patch Only Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="automerge-patch"
-                    value="patch"
                     v-model="config.automergeLevel"
+                    type="radio"
+                    value="patch"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="automerge-patch" class="font-medium text-gray-900 cursor-pointer">
                       Patch Updates Only
@@ -595,12 +595,12 @@
                 <!-- Patch + Minor Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="automerge-minor"
-                    value="minor"
                     v-model="config.automergeLevel"
+                    type="radio"
+                    value="minor"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="automerge-minor" class="font-medium text-gray-900 cursor-pointer">
                       Patch + Minor Updates
@@ -615,12 +615,12 @@
                 <!-- All Updates Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="automerge-all"
-                    value="all"
                     v-model="config.automergeLevel"
+                    type="radio"
+                    value="all"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="automerge-all" class="font-medium text-gray-900 cursor-pointer">
                       All Updates
@@ -634,14 +634,14 @@
               </div>
 
               <!-- Dev Dependencies Checkbox -->
-              <div class="border-t border-gray-200 pt-4" v-if="config.automergeLevel !== 'all'">
+              <div v-if="config.automergeLevel !== 'all'" class="border-t border-gray-200 pt-4">
                 <div class="flex items-start">
                   <input
-                    type="checkbox"
                     id="automerge-dev-all"
                     v-model="config.automergeDevDependencies"
+                    type="checkbox"
                     class="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="automerge-dev-all" class="font-medium text-gray-900 cursor-pointer">
                       Always Automerge All Development Dependencies
@@ -655,14 +655,14 @@
               </div>
 
               <!-- Ignore Tests Checkbox -->
-              <div class="border-t border-gray-200 pt-4 mt-4" v-if="config.automergeLevel !== 'disabled'">
+              <div v-if="config.automergeLevel !== 'disabled'" class="border-t border-gray-200 pt-4 mt-4">
                 <div class="flex items-start">
                   <input
-                    type="checkbox"
                     id="ignore-tests"
                     v-model="config.ignoreTests"
+                    type="checkbox"
                     class="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="ignore-tests" class="font-medium text-gray-900 cursor-pointer">
                       Automerge Without Waiting for Tests
@@ -676,14 +676,14 @@
               </div>
 
               <!-- Disable Automerge for Pre-1.0.0 Checkbox -->
-              <div class="border-t border-gray-200 pt-4 mt-4" v-if="config.automergeLevel !== 'disabled'">
+              <div v-if="config.automergeLevel !== 'disabled'" class="border-t border-gray-200 pt-4 mt-4">
                 <div class="flex items-start">
                   <input
-                    type="checkbox"
                     id="disable-pre-1-automerge"
                     v-model="config.disablePreOneAutomerge"
+                    type="checkbox"
                     class="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="disable-pre-1-automerge" class="font-medium text-gray-900 cursor-pointer">
                       Disable Automerge for Pre-1.0.0 Versions
@@ -728,12 +728,12 @@
                 <!-- Never Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="release-age-never"
-                    value="never"
                     v-model="config.minimumReleaseAge"
+                    type="radio"
+                    value="never"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="release-age-never" class="font-medium text-gray-900 cursor-pointer">
                       No Delay
@@ -748,12 +748,12 @@
                 <!-- 3 Days Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="release-age-3"
-                    value="3-days"
                     v-model="config.minimumReleaseAge"
+                    type="radio"
+                    value="3-days"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="release-age-3" class="font-medium text-gray-900 cursor-pointer">
                       3 Days
@@ -768,12 +768,12 @@
                 <!-- 7 Days Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="release-age-7"
-                    value="7-days"
                     v-model="config.minimumReleaseAge"
+                    type="radio"
+                    value="7-days"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="release-age-7" class="font-medium text-gray-900 cursor-pointer">
                       7 Days (1 Week)
@@ -788,12 +788,12 @@
                 <!-- 14 Days Option -->
                 <div class="flex items-start">
                   <input
-                    type="radio"
                     id="release-age-14"
-                    value="14-days"
                     v-model="config.minimumReleaseAge"
+                    type="radio"
+                    value="14-days"
                     class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="release-age-14" class="font-medium text-gray-900 cursor-pointer">
                       14 Days (2 Weeks)
@@ -827,11 +827,11 @@
             <div>
               <div class="flex items-start mb-4">
                 <input
-                  type="checkbox"
                   id="lockfile-enabled"
                   v-model="config.lockFileMaintenance.enabled"
+                  type="checkbox"
                   class="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
+                >
                 <div class="ml-3 flex-1">
                   <label for="lockfile-enabled" class="text-lg font-medium text-gray-900 cursor-pointer">
                     Enable Lock File Maintenance
@@ -847,11 +847,11 @@
               <div v-if="config.lockFileMaintenance.enabled" class="ml-8 space-y-4">
                 <div class="flex items-start">
                   <input
-                    type="checkbox"
                     id="lockfile-automerge"
                     v-model="config.lockFileMaintenance.automerge"
+                    type="checkbox"
                     class="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="lockfile-automerge" class="font-medium text-gray-900 cursor-pointer">
                       Automerge Lock File Maintenance PRs
@@ -902,12 +902,12 @@
                     Custom Labels
                   </label>
                   <input
-                    type="text"
                     id="vuln-labels"
                     v-model="config.vulnerabilityAlerts.labels"
+                    type="text"
                     placeholder="e.g., security, urgent"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
+                  >
                   <p class="text-xs text-gray-600 mt-1">
                     Comma-separated labels to add to vulnerability alert PRs. Default: "security"
                   </p>
@@ -916,11 +916,11 @@
                 <!-- Schedule Override Checkbox -->
                 <div class="flex items-start">
                   <input
-                    type="checkbox"
                     id="vuln-schedule-override"
                     v-model="config.vulnerabilityAlerts.scheduleOverride"
+                    type="checkbox"
                     class="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="vuln-schedule-override" class="font-medium text-gray-900 cursor-pointer">
                       Override Schedule (Create at Any Time)
@@ -935,11 +935,11 @@
                 <!-- Automerge Checkbox -->
                 <div class="flex items-start">
                   <input
-                    type="checkbox"
                     id="vuln-automerge"
                     v-model="config.vulnerabilityAlerts.automerge"
+                    type="checkbox"
                     class="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <div class="ml-3 flex-1">
                     <label for="vuln-automerge" class="font-medium text-gray-900 cursor-pointer">
                       Automerge Security Updates
@@ -979,11 +979,11 @@
                 <!-- npm -->
                 <div class="flex items-center">
                   <input
-                    type="checkbox"
                     id="group-npm"
                     v-model="config.grouping.npm"
+                    type="checkbox"
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <label for="group-npm" class="ml-2 text-sm text-gray-900 cursor-pointer">
                     npm (JavaScript)
                   </label>
@@ -992,11 +992,11 @@
                 <!-- Docker -->
                 <div class="flex items-center">
                   <input
-                    type="checkbox"
                     id="group-docker"
                     v-model="config.grouping.docker"
+                    type="checkbox"
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <label for="group-docker" class="ml-2 text-sm text-gray-900 cursor-pointer">
                     Docker
                   </label>
@@ -1005,11 +1005,11 @@
                 <!-- Maven -->
                 <div class="flex items-center">
                   <input
-                    type="checkbox"
                     id="group-maven"
                     v-model="config.grouping.maven"
+                    type="checkbox"
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <label for="group-maven" class="ml-2 text-sm text-gray-900 cursor-pointer">
                     Maven (Java)
                   </label>
@@ -1018,11 +1018,11 @@
                 <!-- Gradle -->
                 <div class="flex items-center">
                   <input
-                    type="checkbox"
                     id="group-gradle"
                     v-model="config.grouping.gradle"
+                    type="checkbox"
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <label for="group-gradle" class="ml-2 text-sm text-gray-900 cursor-pointer">
                     Gradle (Java)
                   </label>
@@ -1031,11 +1031,11 @@
                 <!-- pip -->
                 <div class="flex items-center">
                   <input
-                    type="checkbox"
                     id="group-pip"
                     v-model="config.grouping.pip"
+                    type="checkbox"
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <label for="group-pip" class="ml-2 text-sm text-gray-900 cursor-pointer">
                     pip (Python)
                   </label>
@@ -1044,11 +1044,11 @@
                 <!-- Composer -->
                 <div class="flex items-center">
                   <input
-                    type="checkbox"
                     id="group-composer"
                     v-model="config.grouping.composer"
+                    type="checkbox"
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <label for="group-composer" class="ml-2 text-sm text-gray-900 cursor-pointer">
                     Composer (PHP)
                   </label>
@@ -1057,11 +1057,11 @@
                 <!-- Helm -->
                 <div class="flex items-center">
                   <input
-                    type="checkbox"
                     id="group-helm"
                     v-model="config.grouping.helm"
+                    type="checkbox"
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <label for="group-helm" class="ml-2 text-sm text-gray-900 cursor-pointer">
                     Helm (Kubernetes)
                   </label>
@@ -1070,11 +1070,11 @@
                 <!-- GitHub Actions -->
                 <div class="flex items-center">
                   <input
-                    type="checkbox"
                     id="group-github-actions"
                     v-model="config.grouping.githubActions"
+                    type="checkbox"
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <label for="group-github-actions" class="ml-2 text-sm text-gray-900 cursor-pointer">
                     GitHub Actions
                   </label>
@@ -1083,11 +1083,11 @@
                 <!-- Terraform -->
                 <div class="flex items-center">
                   <input
-                    type="checkbox"
                     id="group-terraform"
                     v-model="config.grouping.terraform"
+                    type="checkbox"
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <label for="group-terraform" class="ml-2 text-sm text-gray-900 cursor-pointer">
                     Terraform
                   </label>
@@ -1096,11 +1096,11 @@
                 <!-- Go -->
                 <div class="flex items-center">
                   <input
-                    type="checkbox"
                     id="group-gomod"
                     v-model="config.grouping.gomod"
+                    type="checkbox"
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <label for="group-gomod" class="ml-2 text-sm text-gray-900 cursor-pointer">
                     Go Modules
                   </label>
@@ -1109,11 +1109,11 @@
                 <!-- Cargo -->
                 <div class="flex items-center">
                   <input
-                    type="checkbox"
                     id="group-cargo"
                     v-model="config.grouping.cargo"
+                    type="checkbox"
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <label for="group-cargo" class="ml-2 text-sm text-gray-900 cursor-pointer">
                     Cargo (Rust)
                   </label>
@@ -1122,11 +1122,11 @@
                 <!-- Bundler -->
                 <div class="flex items-center">
                   <input
-                    type="checkbox"
                     id="group-bundler"
                     v-model="config.grouping.bundler"
+                    type="checkbox"
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <label for="group-bundler" class="ml-2 text-sm text-gray-900 cursor-pointer">
                     Bundler (Ruby)
                   </label>
@@ -1135,11 +1135,11 @@
                 <!-- NuGet -->
                 <div class="flex items-center">
                   <input
-                    type="checkbox"
                     id="group-nuget"
                     v-model="config.grouping.nuget"
+                    type="checkbox"
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  >
                   <label for="group-nuget" class="ml-2 text-sm text-gray-900 cursor-pointer">
                     NuGet (.NET)
                   </label>
@@ -1160,14 +1160,90 @@
           </div>
         </div>
 
-        <!-- Generate Button -->
-        <div class="mt-8">
+        <!-- Generate and Feedback Buttons -->
+        <div class="mt-8 space-y-4">
           <button
-            @click="generateAndDownload"
             class="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold text-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors shadow-lg"
+            @click="generateAndDownload"
           >
             Generate renovate.json
           </button>
+          <button
+            :disabled="isLoadingFeedback"
+            class="w-full bg-green-600 text-white py-3 px-6 rounded-lg font-semibold text-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="getFeedback"
+          >
+            {{ isLoadingFeedback ? 'Getting Feedback...' : 'Get AI Feedback' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Feedback Section -->
+      <div v-if="feedback" class="bg-white shadow-xl rounded-lg p-8 mb-6">
+        <div class="flex justify-between items-start mb-4">
+          <h3 class="text-xl font-semibold text-gray-900">AI Feedback</h3>
+          <button
+            class="text-gray-400 hover:text-gray-600 transition-colors"
+            @click="feedback = null"
+          >
+            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Summary -->
+        <div class="mb-6">
+          <h4 class="text-lg font-medium text-gray-900 mb-2">Summary</h4>
+          <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+            <p class="text-gray-800">{{ feedback.summary }}</p>
+          </div>
+        </div>
+
+        <!-- Issues -->
+        <div v-if="feedback.issues && feedback.issues.length > 0" class="mb-6">
+          <h4 class="text-lg font-medium text-gray-900 mb-3">Issues Found</h4>
+          <div class="space-y-3">
+            <div
+              v-for="(issue, index) in feedback.issues"
+              :key="index"
+              class="border rounded-lg p-4"
+              :class="{
+                'border-red-300 bg-red-50': issue.severity === 'error',
+                'border-yellow-300 bg-yellow-50': issue.severity === 'warning',
+                'border-blue-300 bg-blue-50': issue.severity === 'info'
+              }"
+            >
+              <div class="flex items-start">
+                <span
+                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mr-3 mt-0.5"
+                  :class="{
+                    'bg-red-100 text-red-800': issue.severity === 'error',
+                    'bg-yellow-100 text-yellow-800': issue.severity === 'warning',
+                    'bg-blue-100 text-blue-800': issue.severity === 'info'
+                  }"
+                >
+                  {{ issue.severity.toUpperCase() }}
+                </span>
+                <div class="flex-1">
+                  <div class="flex items-start justify-between mb-2">
+                    <p class="font-medium text-gray-900">{{ issue.message }}</p>
+                    <code class="ml-2 text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 whitespace-nowrap">{{ issue.jsonPath }}</code>
+                  </div>
+                  <p class="text-sm text-gray-700 mt-1">
+                    <strong class="text-gray-900">Suggestion:</strong> {{ issue.suggestion }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Improved Config -->
+        <div v-if="feedback.improvedRenovateJson" class="mb-4">
+          <h4 class="text-lg font-medium text-gray-900 mb-3">Improved Configuration</h4>
+          <p class="text-sm text-gray-600 mb-2">Here's an AI-suggested improved version of your configuration:</p>
+          <pre class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-sm">{{ feedback.improvedRenovateJson }}</pre>
         </div>
       </div>
 
@@ -1182,6 +1258,19 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+
+interface Issue {
+  severity: string
+  jsonPath: string
+  message: string
+  suggestion: string
+}
+
+interface FeedbackResponse {
+  summary: string
+  issues: Issue[]
+  improvedRenovateJson: string
+}
 
 interface RenovateConfig {
   semanticCommits: boolean
@@ -1261,6 +1350,9 @@ const config = ref<RenovateConfig>({
   }
 })
 
+const feedback = ref<FeedbackResponse | null>(null)
+const isLoadingFeedback = ref(false)
+
 const timezones = [
   { value: 'UTC', label: 'UTC - Coordinated Universal Time' },
   { value: 'Europe/Berlin', label: 'Europe/Berlin (CET/CEST)' },
@@ -1295,7 +1387,8 @@ const generatedConfig = computed(() => {
     extends_array.push(':semanticCommits')
   }
 
-  const configObject: any = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const configObject: Record<string, any> = {
     $schema: 'https://docs.renovatebot.com/renovate-schema.json',
     extends: extends_array
   }
@@ -1350,7 +1443,8 @@ const generatedConfig = computed(() => {
 
     // Add rule for general automerge level (production dependencies)
     if (config.value.automergeLevel !== 'disabled') {
-      const rule: any = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rule: Record<string, any> = {
         automerge: true
       }
 
@@ -1508,6 +1602,56 @@ const generateAndDownload = () => {
   link.click()
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
+}
+
+const getBackendUrl = () => {
+  if (typeof window === 'undefined') {
+    // Server-side rendering
+    return 'http://localhost:8080/api'
+  }
+
+  // Client-side
+  if (window.location.hostname === 'localhost') {
+    return 'http://localhost:8080/api'
+  }
+
+  // Production: use same protocol, domain, port with /api path
+  return `${window.location.protocol}//${window.location.host}/api`
+}
+
+const getFeedback = async () => {
+  isLoadingFeedback.value = true
+  feedback.value = null
+
+  try {
+    const backendUrl = getBackendUrl()
+    const response = await fetch(`${backendUrl}/feedback`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        renovateJson: generatedConfig.value
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const data: FeedbackResponse = await response.json()
+    feedback.value = data
+  } catch (error) {
+    console.error('Error getting feedback:', error)
+    // Create a feedback object with just an error message
+    feedback.value = {
+      summary: `Error getting feedback: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      issues: [],
+      improvedRenovateJson: ''
+    }
+  } finally {
+    isLoadingFeedback.value = false
+  }
 }
 </script>
 

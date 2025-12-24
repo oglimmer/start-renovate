@@ -70,4 +70,3 @@ All selections are reflected in the live preview and exported JSON.
 ## Contributing
 
 Issues and PRs welcome. If you see confusing defaults or missing options that many teams would benefit from, please open a discussion.
-

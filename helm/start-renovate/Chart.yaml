@@ -1,0 +1,15 @@
+apiVersion: v2
+name: start-renovate
+description: A Helm chart for Renovate configuration generator with backend and frontend
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Renovate Initializr Team
+keywords:
+  - start-renovate
+  - renovate
+  - dependency-management
+  - java
+  - spring-boot
+  - nuxt

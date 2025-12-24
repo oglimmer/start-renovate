@@ -1,0 +1,104 @@
+# Default values for start-renovate
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+# Backend (API) configuration
+backend:
+  name: api
+  image:
+    repository: registry.oglimmer.com/start-renovate-be
+    pullPolicy: Always
+    tag: "latest"
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+  # Java-specific settings
+  javaOpts: "-Xmx512m -Xms256m -XX:MaxMetaspaceSize=128m -XX:+UseG1GC"
+
+# Frontend configuration
+frontend:
+  name: web
+  image:
+    repository: registry.oglimmer.com/start-renovate-fe
+    pullPolicy: Always
+    tag: "latest"
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Ingress configuration with Traefik support
+ingress:
+  enabled: true
+  annotations:
+    cert-manager.io/cluster-issuer: "oglimmer-com-dns"
+  hosts:
+    - host: renovate.oglimmer.com
+      paths:
+        # Backend API (includes /api/actuator since backend context-path is /api)
+        - path: /api
+          pathType: Prefix
+          backend: api
+        # Frontend must be last as it's the catch-all
+        - path: /
+          pathType: Prefix
+          backend: web
+  tls:
+    - secretName: tls-start-renovate-ingress-dns
+      hosts:
+        - renovate.oglimmer.com
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 1000
+
+# Security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Image pull secrets
+imagePullSecrets:
+  - name: oglimmerregistrykey
