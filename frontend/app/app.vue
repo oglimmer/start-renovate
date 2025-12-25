@@ -4,6 +4,12 @@
       <div class="text-center mb-8">
         <h1 class="text-4xl font-bold text-gray-900 mb-2">Renovate Initializr</h1>
         <p class="text-gray-600">Create your renovate.json configuration with ease</p>
+        <p class="text-sm text-gray-500 mt-2">
+          New to Renovate?
+          <a href="https://docs.renovatebot.com/" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:text-indigo-800 underline">
+            Check out the official documentation
+          </a>
+        </p>
       </div>
 
       <div class="bg-white shadow-xl rounded-lg p-8 mb-6">
