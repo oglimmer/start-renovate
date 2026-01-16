@@ -1461,18 +1461,19 @@ const generatedConfig = computed(() => {
         rule.matchUpdateTypes = ['minor', 'patch']
       }
 
-      // If dev dependencies have their own rule, exclude them from this rule
-      if (config.value.automergeDevDependencies) {
-        rule.matchDepTypes = ['dependencies', 'peerDependencies', 'optionalDependencies']
-      }
-
       configObject.packageRules.push(rule)
     }
 
     // Add separate rule for dev dependencies if enabled
     if (config.value.automergeDevDependencies) {
+      // Rule for npm-style devDependencies
       configObject.packageRules.push({
         matchDepTypes: ['devDependencies'],
+        automerge: true
+      })
+      // Rule for build tool managers (maven-wrapper, gradle-wrapper, etc.)
+      configObject.packageRules.push({
+        matchManagers: ['maven-wrapper', 'gradle-wrapper'],
         automerge: true
       })
     }
