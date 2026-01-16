@@ -1255,7 +1255,15 @@
 
       <!-- Preview Section -->
       <div class="bg-white shadow-xl rounded-lg p-8">
-        <h3 class="text-xl font-semibold text-gray-900 mb-4">Configuration Preview</h3>
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-semibold text-gray-900">Configuration Preview</h3>
+          <button
+            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+            @click="copyToClipboard"
+          >
+            {{ copyButtonText }}
+          </button>
+        </div>
         <pre class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-sm">{{ generatedConfig }}</pre>
       </div>
     </div>
@@ -1358,6 +1366,7 @@ const config = ref<RenovateConfig>({
 
 const feedback = ref<FeedbackResponse | null>(null)
 const isLoadingFeedback = ref(false)
+const copyButtonText = ref('Copy')
 
 const timezones = [
   { value: 'UTC', label: 'UTC - Coordinated Universal Time' },
@@ -1609,6 +1618,21 @@ const generateAndDownload = () => {
   link.click()
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
+}
+
+const copyToClipboard = async () => {
+  try {
+    await navigator.clipboard.writeText(generatedConfig.value)
+    copyButtonText.value = 'Copied!'
+    setTimeout(() => {
+      copyButtonText.value = 'Copy'
+    }, 2000)
+  } catch {
+    copyButtonText.value = 'Failed'
+    setTimeout(() => {
+      copyButtonText.value = 'Copy'
+    }, 2000)
+  }
 }
 
 const getBackendUrl = () => {
