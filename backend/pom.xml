@@ -34,12 +34,12 @@
     <dependency>
       <groupId>com.networknt</groupId>
       <artifactId>json-schema-validator</artifactId>
-      <version>1.5.3</version>
+      <version>1.5.9</version>
     </dependency>
     <dependency>
       <groupId>com.openai</groupId>
       <artifactId>openai-java-spring-boot-starter</artifactId>
-      <version>4.13.0</version>
+      <version>4.15.0</version>
     </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
