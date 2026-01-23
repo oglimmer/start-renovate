@@ -84,8 +84,8 @@ http {
 }
 EOF
 
-# Copy built files from build stage
-COPY --from=build /app/dist /usr/share/nginx/html
+# Copy built files from build stage (Nuxt outputs to .output/public)
+COPY --from=build /app/.output/public /usr/share/nginx/html
 
 # Adjust permissions
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
