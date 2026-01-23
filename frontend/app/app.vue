@@ -56,7 +56,15 @@
             </div>
           </div>
 
-          <h2 class="text-2xl font-semibold text-gray-900 mb-4">Configuration Options</h2>
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-semibold text-gray-900">Configuration Options</h2>
+            <button
+              class="px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+              @click="showImportModal = true"
+            >
+              Import Configuration
+            </button>
+          </div>
 
           <!-- Semantic Commits Option -->
           <div class="border border-gray-200 rounded-lg p-6 mb-4 hover:shadow-md transition-shadow">
@@ -1289,6 +1297,91 @@
         <pre class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-sm">{{ generatedConfig }}</pre>
       </div>
     </div>
+
+    <!-- Import Modal -->
+    <div v-if="showImportModal" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="flex min-h-screen items-center justify-center p-4">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showImportModal = false"></div>
+
+        <!-- Modal -->
+        <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold text-gray-900">Import Configuration</h3>
+            <button
+              class="text-gray-400 hover:text-gray-600 transition-colors"
+              @click="showImportModal = false"
+            >
+              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <p class="text-sm text-gray-600 mb-4">
+            Import an existing renovate.json configuration to populate the form fields.
+          </p>
+
+          <!-- Tabs -->
+          <div class="flex border-b border-gray-200 mb-4">
+            <button
+              class="px-4 py-2 text-sm font-medium transition-colors"
+              :class="importTab === 'paste' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'"
+              @click="importTab = 'paste'; importError = ''"
+            >
+              Paste JSON
+            </button>
+            <button
+              class="px-4 py-2 text-sm font-medium transition-colors"
+              :class="importTab === 'url' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'"
+              @click="importTab = 'url'; importError = ''"
+            >
+              GitHub URL
+            </button>
+          </div>
+
+          <!-- Paste JSON Tab -->
+          <div v-if="importTab === 'paste'">
+            <textarea
+              v-model="importJsonText"
+              placeholder="Paste your renovate.json content here..."
+              class="w-full h-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm resize-none"
+            ></textarea>
+            <button
+              class="mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+              @click="importFromJson"
+            >
+              Import JSON
+            </button>
+          </div>
+
+          <!-- GitHub URL Tab -->
+          <div v-if="importTab === 'url'">
+            <input
+              v-model="importUrl"
+              type="text"
+              placeholder="https://github.com/owner/repo/blob/main/renovate.json"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+            >
+            <p class="mt-2 text-xs text-gray-500">
+              Supports GitHub URLs in various formats: direct file links, repository URLs (will look for renovate.json in root), or raw.githubusercontent.com URLs.
+            </p>
+            <button
+              :disabled="isImporting"
+              class="mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="importFromUrl"
+            >
+              {{ isImporting ? 'Importing...' : 'Import from URL' }}
+            </button>
+          </div>
+
+          <!-- Error Message -->
+          <div v-if="importError" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p class="text-sm text-red-600">{{ importError }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1391,6 +1484,14 @@ const config = ref<RenovateConfig>({
 const feedback = ref<FeedbackResponse | null>(null)
 const isLoadingFeedback = ref(false)
 const copyButtonText = ref('Copy')
+
+// Import functionality state
+const showImportModal = ref(false)
+const importTab = ref<'paste' | 'url'>('paste')
+const importJsonText = ref('')
+const importUrl = ref('')
+const importError = ref('')
+const isImporting = ref(false)
 
 const timezones = [
   { value: 'UTC', label: 'UTC - Coordinated Universal Time' },
@@ -1662,6 +1763,316 @@ const copyToClipboard = async () => {
     setTimeout(() => {
       copyButtonText.value = 'Copy'
     }, 2000)
+  }
+}
+
+// Parse renovate.json and map it back to our config structure
+const parseRenovateJson = (jsonString: string): Partial<RenovateConfig> => {
+  const parsed = JSON.parse(jsonString)
+  const result: Partial<RenovateConfig> = {}
+
+  // Parse extends for semantic commits
+  if (parsed.extends && Array.isArray(parsed.extends)) {
+    result.semanticCommits = parsed.extends.includes(':semanticCommits')
+  }
+
+  // Parse timezone
+  if (parsed.timezone) {
+    result.timezone = parsed.timezone
+  }
+
+  // Parse schedule
+  if (parsed.schedule) {
+    const scheduleStr = Array.isArray(parsed.schedule) ? parsed.schedule.join(', ') : parsed.schedule
+    if (scheduleStr.includes('monday') && scheduleStr.includes('5am')) {
+      result.schedule = 'weekly'
+    } else if (scheduleStr.includes('first day of the month')) {
+      result.schedule = 'monthly'
+    } else if (scheduleStr.includes('weekend') && !scheduleStr.includes('weekday')) {
+      result.schedule = 'weekends'
+    } else if (scheduleStr.includes('6pm') || scheduleStr.includes('9am')) {
+      result.schedule = 'outside-business-hours'
+    } else {
+      result.schedule = 'at-any-time'
+    }
+  }
+
+  // Parse PR limits
+  if (parsed.prHourlyLimit === 1 && parsed.prConcurrentLimit === 3) {
+    result.prLimitStrategy = 'conservative'
+  } else if (parsed.prHourlyLimit === 10 && parsed.prConcurrentLimit === 20) {
+    result.prLimitStrategy = 'active'
+  } else if (parsed.prHourlyLimit !== undefined || parsed.prConcurrentLimit !== undefined) {
+    // Custom values - pick closest match
+    if ((parsed.prHourlyLimit || 2) <= 2 && (parsed.prConcurrentLimit || 10) <= 5) {
+      result.prLimitStrategy = 'conservative'
+    } else if ((parsed.prHourlyLimit || 2) >= 5) {
+      result.prLimitStrategy = 'active'
+    } else {
+      result.prLimitStrategy = 'default'
+    }
+  }
+
+  // Parse rebaseWhen
+  if (parsed.rebaseWhen) {
+    result.rebaseWhen = parsed.rebaseWhen
+  }
+
+  // Parse rangeStrategy
+  if (parsed.rangeStrategy) {
+    result.rangeStrategy = parsed.rangeStrategy
+  }
+
+  // Parse automergeType
+  if (parsed.automergeType) {
+    result.automergeType = parsed.automergeType
+  }
+
+  // Parse ignoreTests
+  if (parsed.ignoreTests) {
+    result.ignoreTests = parsed.ignoreTests
+  }
+
+  // Parse minimumReleaseAge
+  if (parsed.minimumReleaseAge) {
+    const age = parsed.minimumReleaseAge.toLowerCase()
+    if (age.includes('3')) {
+      result.minimumReleaseAge = '3-days'
+    } else if (age.includes('7') || age.includes('1 week')) {
+      result.minimumReleaseAge = '7-days'
+    } else if (age.includes('14') || age.includes('2 week')) {
+      result.minimumReleaseAge = '14-days'
+    }
+  }
+
+  // Parse automerge settings
+  if (parsed.automerge === true) {
+    result.automergeLevel = 'all'
+  }
+
+  // Parse packageRules for automerge settings and grouping
+  if (parsed.packageRules && Array.isArray(parsed.packageRules)) {
+    // Initialize grouping
+    result.grouping = {
+      npm: false,
+      docker: false,
+      maven: false,
+      gradle: false,
+      pip: false,
+      composer: false,
+      helm: false,
+      githubActions: false,
+      terraform: false,
+      gomod: false,
+      cargo: false,
+      bundler: false,
+      nuget: false
+    }
+
+    for (const rule of parsed.packageRules) {
+      // Check for automerge rules
+      if (rule.automerge === true) {
+        if (rule.matchUpdateTypes) {
+          const types = rule.matchUpdateTypes
+          if (types.includes('minor') && types.includes('patch')) {
+            result.automergeLevel = 'minor'
+          } else if (types.includes('patch') && !types.includes('minor')) {
+            result.automergeLevel = 'patch'
+          }
+        }
+        if (rule.matchDepTypes && rule.matchDepTypes.includes('devDependencies')) {
+          result.automergeDevDependencies = true
+        }
+      }
+
+      // Check for pre-1.0.0 disable rule
+      if (rule.matchCurrentVersion && rule.matchCurrentVersion.includes('^0\\.') && rule.automerge === false) {
+        result.disablePreOneAutomerge = true
+      }
+
+      // Check for grouping rules
+      if (rule.matchManagers && rule.groupName) {
+        const managers = rule.matchManagers
+        if (managers.includes('npm')) result.grouping!.npm = true
+        if (managers.includes('dockerfile') || managers.includes('docker-compose')) result.grouping!.docker = true
+        if (managers.includes('maven')) result.grouping!.maven = true
+        if (managers.includes('gradle') || managers.includes('gradle-wrapper')) result.grouping!.gradle = true
+        if (managers.includes('pip_requirements') || managers.includes('pip_setup') || managers.includes('pipenv')) result.grouping!.pip = true
+        if (managers.includes('composer')) result.grouping!.composer = true
+        if (managers.includes('helmv3') || managers.includes('helmfile')) result.grouping!.helm = true
+        if (managers.includes('github-actions')) result.grouping!.githubActions = true
+        if (managers.includes('terraform') || managers.includes('terragrunt')) result.grouping!.terraform = true
+        if (managers.includes('gomod')) result.grouping!.gomod = true
+        if (managers.includes('cargo')) result.grouping!.cargo = true
+        if (managers.includes('bundler')) result.grouping!.bundler = true
+        if (managers.includes('nuget')) result.grouping!.nuget = true
+      }
+    }
+  }
+
+  // Parse lockFileMaintenance
+  if (parsed.lockFileMaintenance) {
+    result.lockFileMaintenance = {
+      enabled: parsed.lockFileMaintenance.enabled !== false,
+      schedule: 'at-any-time',
+      automerge: parsed.lockFileMaintenance.automerge === true
+    }
+
+    if (parsed.lockFileMaintenance.schedule) {
+      const scheduleStr = Array.isArray(parsed.lockFileMaintenance.schedule)
+        ? parsed.lockFileMaintenance.schedule.join(', ')
+        : parsed.lockFileMaintenance.schedule
+      if (scheduleStr.includes('monday') && scheduleStr.includes('5am')) {
+        result.lockFileMaintenance.schedule = 'weekly'
+      } else if (scheduleStr.includes('first day of the month')) {
+        result.lockFileMaintenance.schedule = 'monthly'
+      } else if (scheduleStr.includes('weekend') && !scheduleStr.includes('weekday')) {
+        result.lockFileMaintenance.schedule = 'weekends'
+      } else if (scheduleStr.includes('6pm') || scheduleStr.includes('9am')) {
+        result.lockFileMaintenance.schedule = 'outside-business-hours'
+      }
+    }
+  }
+
+  // Parse vulnerabilityAlerts
+  if (parsed.vulnerabilityAlerts) {
+    result.vulnerabilityAlerts = {
+      labels: '',
+      scheduleOverride: false,
+      automerge: false
+    }
+
+    if (parsed.vulnerabilityAlerts.labels && Array.isArray(parsed.vulnerabilityAlerts.labels)) {
+      result.vulnerabilityAlerts.labels = parsed.vulnerabilityAlerts.labels.join(', ')
+    }
+
+    if (parsed.vulnerabilityAlerts.schedule) {
+      const scheduleStr = Array.isArray(parsed.vulnerabilityAlerts.schedule)
+        ? parsed.vulnerabilityAlerts.schedule.join(', ')
+        : parsed.vulnerabilityAlerts.schedule
+      if (scheduleStr.includes('any time')) {
+        result.vulnerabilityAlerts.scheduleOverride = true
+      }
+    }
+
+    if (parsed.vulnerabilityAlerts.automerge === true) {
+      result.vulnerabilityAlerts.automerge = true
+    }
+  }
+
+  return result
+}
+
+// Convert GitHub URL to raw content URL
+const convertToRawGitHubUrl = (url: string): string => {
+  // Handle various GitHub URL formats
+  // https://github.com/owner/repo/blob/branch/path/to/renovate.json
+  // https://github.com/owner/repo/raw/branch/path/to/renovate.json
+  // https://raw.githubusercontent.com/owner/repo/branch/path/to/renovate.json
+
+  if (url.includes('raw.githubusercontent.com')) {
+    return url // Already a raw URL
+  }
+
+  // Convert blob URL to raw URL
+  if (url.includes('github.com') && url.includes('/blob/')) {
+    return url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/')
+  }
+
+  // Convert tree URL to raw URL (for direct file links)
+  if (url.includes('github.com') && url.includes('/tree/')) {
+    return url.replace('github.com', 'raw.githubusercontent.com').replace('/tree/', '/')
+  }
+
+  // If it's a repo root URL, try to fetch renovate.json from default branch
+  const repoMatch = url.match(/github\.com\/([^/]+)\/([^/]+)\/?$/)
+  if (repoMatch) {
+    const [, owner, repo] = repoMatch
+    return `https://raw.githubusercontent.com/${owner}/${repo}/main/renovate.json`
+  }
+
+  return url
+}
+
+// Import from pasted JSON
+const importFromJson = () => {
+  importError.value = ''
+
+  if (!importJsonText.value.trim()) {
+    importError.value = 'Please paste a JSON configuration'
+    return
+  }
+
+  try {
+    const parsedConfig = parseRenovateJson(importJsonText.value)
+    applyImportedConfig(parsedConfig)
+    showImportModal.value = false
+    importJsonText.value = ''
+  } catch (e) {
+    importError.value = `Invalid JSON: ${e instanceof Error ? e.message : 'Unknown error'}`
+  }
+}
+
+// Import from GitHub URL
+const importFromUrl = async () => {
+  importError.value = ''
+
+  if (!importUrl.value.trim()) {
+    importError.value = 'Please enter a GitHub URL'
+    return
+  }
+
+  isImporting.value = true
+
+  try {
+    const rawUrl = convertToRawGitHubUrl(importUrl.value.trim())
+    const response = await fetch(rawUrl)
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('File not found. Make sure the URL points to a valid renovate.json file.')
+      }
+      throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`)
+    }
+
+    const jsonText = await response.text()
+    const parsedConfig = parseRenovateJson(jsonText)
+    applyImportedConfig(parsedConfig)
+    showImportModal.value = false
+    importUrl.value = ''
+  } catch (e) {
+    importError.value = e instanceof Error ? e.message : 'Failed to import configuration'
+  } finally {
+    isImporting.value = false
+  }
+}
+
+// Apply imported config to the current config
+const applyImportedConfig = (imported: Partial<RenovateConfig>) => {
+  // Merge imported values with current config, keeping defaults for unspecified values
+  if (imported.semanticCommits !== undefined) config.value.semanticCommits = imported.semanticCommits
+  if (imported.timezone !== undefined) config.value.timezone = imported.timezone
+  if (imported.schedule !== undefined) config.value.schedule = imported.schedule
+  if (imported.prLimitStrategy !== undefined) config.value.prLimitStrategy = imported.prLimitStrategy
+  if (imported.rebaseWhen !== undefined) config.value.rebaseWhen = imported.rebaseWhen
+  if (imported.rangeStrategy !== undefined) config.value.rangeStrategy = imported.rangeStrategy
+  if (imported.automergeType !== undefined) config.value.automergeType = imported.automergeType
+  if (imported.automergeLevel !== undefined) config.value.automergeLevel = imported.automergeLevel
+  if (imported.automergeDevDependencies !== undefined) config.value.automergeDevDependencies = imported.automergeDevDependencies
+  if (imported.ignoreTests !== undefined) config.value.ignoreTests = imported.ignoreTests
+  if (imported.disablePreOneAutomerge !== undefined) config.value.disablePreOneAutomerge = imported.disablePreOneAutomerge
+  if (imported.minimumReleaseAge !== undefined) config.value.minimumReleaseAge = imported.minimumReleaseAge
+
+  if (imported.lockFileMaintenance !== undefined) {
+    config.value.lockFileMaintenance = { ...config.value.lockFileMaintenance, ...imported.lockFileMaintenance }
+  }
+
+  if (imported.vulnerabilityAlerts !== undefined) {
+    config.value.vulnerabilityAlerts = { ...config.value.vulnerabilityAlerts, ...imported.vulnerabilityAlerts }
+  }
+
+  if (imported.grouping !== undefined) {
+    config.value.grouping = { ...config.value.grouping, ...imported.grouping }
   }
 }
 
