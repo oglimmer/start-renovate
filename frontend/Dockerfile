@@ -1,5 +1,5 @@
 # Multi-stage build for Nuxt 3 frontend
-FROM node:22.22.1-alpine AS build
+FROM node:22.22.2-alpine AS build
 
 WORKDIR /app
 
