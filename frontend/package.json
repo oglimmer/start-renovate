@@ -10,7 +10,8 @@
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "type-check": "nuxi typecheck"
+    "type-check": "nuxi typecheck",
+    "test": "vitest run"
   },
   "dependencies": {
     "@nuxt/eslint": "^1.15.2",
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@nuxtjs/tailwindcss": "^6.14.0",
-    "@types/node": "^24.12.0"
+    "@types/node": "^24.12.0",
+    "vitest": "^3.2.4"
   }
 }
