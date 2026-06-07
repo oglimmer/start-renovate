@@ -72,7 +72,8 @@
                 <p class="font-semibold text-gray-900 mb-1">Auth &amp; CORS</p>
                 <ul class="list-disc ml-5 space-y-1 text-gray-700">
                   <li><strong>No authentication</strong> is required — the endpoint is open.</li>
-                  <li>CORS is enabled for all origins, so you can call it from the browser.</li>
+                  <li>CORS is restricted to <code class="bg-white px-1 rounded">https://renovate.oglimmer.com</code>, so browser calls from other origins are blocked. Call it server-to-server instead.</li>
+                  <li><strong>Rate limited</strong> to 1 request per minute per IP — extra calls get <code class="bg-white px-1 rounded">429 Too Many Requests</code>.</li>
                   <li>Be a good citizen: each call costs an LLM round-trip.</li>
                 </ul>
               </div>
@@ -391,7 +392,8 @@ const generateOutputExample = `{
 
 const statusCodes = [
   { code: '200 OK', meaning: 'Feedback generated successfully (see the graceful-degradation note below).' },
-  { code: '400 Bad Request', meaning: 'The renovateJson is not valid JSON, or fails Renovate schema validation. The error message names the offending fields.' }
+  { code: '400 Bad Request', meaning: 'The renovateJson is not valid JSON, or fails Renovate schema validation. The error message names the offending fields.' },
+  { code: '429 Too Many Requests', meaning: 'Rate limit exceeded — the endpoint allows 1 request per minute per IP. Wait and retry.' }
 ]
 
 const responseFields = [
