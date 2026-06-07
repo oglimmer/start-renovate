@@ -59,6 +59,13 @@ http {
         listen       8080;
         server_name  localhost;
 
+        # Behind a reverse proxy (Traefik ingress) the public port differs from
+        # the container's listen port (8080). Emit relative redirects so nginx
+        # never leaks ":8080" into the Location header on directory (trailing
+        # slash) redirects.
+        absolute_redirect off;
+        port_in_redirect  off;
+
         root   /usr/share/nginx/html;
         index  index.html;
 
