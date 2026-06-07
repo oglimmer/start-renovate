@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { buildRenovateConfig, type RenovateConfig } from './generateRenovateConfig'
+import {
+  buildRenovateConfig,
+  configFromQuery,
+  defaultRenovateConfig,
+  generateConfigJsonFromQuery,
+  generateRenovateConfigJson,
+  type RenovateConfig
+} from './generateRenovateConfig'
 
 function makeConfig(overrides: Partial<RenovateConfig> = {}): RenovateConfig {
   const base: RenovateConfig = {
@@ -119,5 +126,55 @@ describe('buildRenovateConfig — vulnerability alert release-age override', () 
     for (const rule of rules) {
       expect(rule).not.toHaveProperty('minimumReleaseAge')
     }
+  })
+})
+
+describe('configFromQuery — query-param pseudo API', () => {
+  it('returns the defaults (deep clone) for an empty query', () => {
+    const out = configFromQuery({})
+    expect(out).toEqual(defaultRenovateConfig)
+    expect(out).not.toBe(defaultRenovateConfig)
+    expect(out.grouping).not.toBe(defaultRenovateConfig.grouping)
+  })
+
+  it('produces the same JSON as the form defaults for an empty query', () => {
+    expect(generateConfigJsonFromQuery({})).toBe(generateRenovateConfigJson(defaultRenovateConfig))
+  })
+
+  it('coerces boolean fields from common truthy/falsy strings', () => {
+    expect(configFromQuery({ semanticCommits: 'false' }).semanticCommits).toBe(false)
+    expect(configFromQuery({ 'grouping.npm': 'true' }).grouping.npm).toBe(true)
+    expect(configFromQuery({ 'grouping.npm': '1' }).grouping.npm).toBe(true)
+    expect(configFromQuery({ 'grouping.npm': 'yes' }).grouping.npm).toBe(true)
+    expect(configFromQuery({ 'grouping.npm': 'on' }).grouping.npm).toBe(true)
+    expect(configFromQuery({ 'grouping.npm': 'nonsense' }).grouping.npm).toBe(false)
+  })
+
+  it('assigns string fields verbatim', () => {
+    const out = configFromQuery({ timezone: 'UTC', schedule: 'weekly', 'vulnerabilityAlerts.labels': 'security,urgent' })
+    expect(out.timezone).toBe('UTC')
+    expect(out.schedule).toBe('weekly')
+    expect(out.vulnerabilityAlerts.labels).toBe('security,urgent')
+  })
+
+  it('maps nested keys via dot notation', () => {
+    const out = configFromQuery({ 'lockFileMaintenance.enabled': 'false', 'lockFileMaintenance.automerge': 'false' })
+    expect(out.lockFileMaintenance.enabled).toBe(false)
+    expect(out.lockFileMaintenance.automerge).toBe(false)
+  })
+
+  it('ignores unknown keys and never mutates the exported defaults', () => {
+    const snapshot = structuredClone(defaultRenovateConfig)
+    const out = configFromQuery({ bogus: 'x', 'grouping.nope': 'true', 'grouping.npm': 'true' })
+    expect(out).not.toHaveProperty('bogus')
+    expect(out.grouping).not.toHaveProperty('nope')
+    expect(out.grouping.npm).toBe(true)
+    expect(defaultRenovateConfig).toEqual(snapshot)
+  })
+
+  it('takes the last value for repeated params and treats a bare flag as empty', () => {
+    expect(configFromQuery({ schedule: ['weekly', 'monthly'] }).schedule).toBe('monthly')
+    expect(configFromQuery({ timezone: null }).timezone).toBe('')
+    expect(configFromQuery({ semanticCommits: null }).semanticCommits).toBe(false)
   })
 })

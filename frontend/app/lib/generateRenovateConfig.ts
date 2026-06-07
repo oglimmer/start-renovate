@@ -38,6 +38,49 @@ export interface RenovateConfig {
   }
 }
 
+// The canonical default configuration. This is the single source of truth for
+// the initial form state (see pages/index.vue) AND the baseline that the
+// query-param "pseudo API" (see pages/generate.vue) merges overrides onto.
+export const defaultRenovateConfig: RenovateConfig = {
+  semanticCommits: true,
+  timezone: 'Europe/Berlin',
+  schedule: 'at-any-time',
+  prLimitStrategy: 'active',
+  rebaseWhen: 'behind-base-branch',
+  rangeStrategy: 'bump',
+  automergeType: 'branch',
+  automergeLevel: 'minor',
+  automergeDevDependencies: false,
+  ignoreTests: false,
+  disablePreOneAutomerge: true,
+  minimumReleaseAge: 'never',
+  lockFileMaintenance: {
+    enabled: true,
+    schedule: 'at-any-time',
+    automerge: true
+  },
+  vulnerabilityAlerts: {
+    labels: 'security',
+    scheduleOverride: true,
+    automerge: true
+  },
+  grouping: {
+    npm: false,
+    docker: false,
+    maven: false,
+    gradle: false,
+    pip: false,
+    composer: false,
+    helm: false,
+    githubActions: false,
+    terraform: false,
+    gomod: false,
+    cargo: false,
+    bundler: false,
+    nuget: false
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildRenovateConfig(config: RenovateConfig): Record<string, any> {
   const extends_array = [
@@ -233,4 +276,67 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
 
 export function generateRenovateConfigJson(config: RenovateConfig): string {
   return JSON.stringify(buildRenovateConfig(config), null, 2)
+}
+
+// ---------------------------------------------------------------------------
+// Query-param "pseudo API"
+//
+// configFromQuery() lets the same generation logic be driven by URL query
+// parameters instead of the form. It deep-merges the query onto
+// defaultRenovateConfig, so every field (current and future) is supported
+// automatically without enumerating them here. Nested fields use dot notation:
+//
+//   ?schedule=weekly&grouping.npm=true&lockFileMaintenance.enabled=false
+//
+// Booleans accept true/1/yes/on (anything else is false). Unknown keys and
+// keys whose value type doesn't match the default are ignored.
+// ---------------------------------------------------------------------------
+
+export type QueryValue = string | null | undefined | (string | null)[]
+export type ConfigQuery = Record<string, QueryValue>
+
+function parseBool(value: string): boolean {
+  const v = value.trim().toLowerCase()
+  return v === 'true' || v === '1' || v === 'yes' || v === 'on'
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyConfigValue(target: Record<string, any>, path: string[], value: string): void {
+  const [head, ...rest] = path
+  if (head === undefined || !Object.prototype.hasOwnProperty.call(target, head)) {
+    return // unknown key – ignore so the API stays forgiving
+  }
+
+  if (rest.length === 0) {
+    const current = target[head]
+    if (typeof current === 'boolean') {
+      target[head] = parseBool(value)
+    } else if (typeof current === 'string') {
+      target[head] = value
+    }
+    // other types (none exist today) are intentionally left untouched
+    return
+  }
+
+  if (typeof target[head] === 'object' && target[head] !== null) {
+    applyConfigValue(target[head], rest, value)
+  }
+}
+
+export function configFromQuery(query: ConfigQuery): RenovateConfig {
+  const config = structuredClone(defaultRenovateConfig)
+
+  for (const [rawKey, rawValue] of Object.entries(query)) {
+    if (rawValue === undefined) continue
+    // For repeated params (?x=a&x=b) take the last occurrence.
+    const picked = Array.isArray(rawValue) ? rawValue[rawValue.length - 1] : rawValue
+    const value = picked ?? '' // null (bare ?flag) becomes empty string
+    applyConfigValue(config, rawKey.split('.'), value)
+  }
+
+  return config
+}
+
+export function generateConfigJsonFromQuery(query: ConfigQuery): string {
+  return generateRenovateConfigJson(configFromQuery(query))
 }

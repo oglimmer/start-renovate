@@ -4,7 +4,11 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['@nuxtjs/tailwindcss', '@nuxt/eslint'],
   nitro: {
-    preset: 'github-pages'
+    preset: 'github-pages',
+    prerender: {
+      crawlLinks: true,
+      routes: ['/', '/developers', '/generate']
+    }
   },
   app: {
     baseURL: process.env.BASE_URL || '/',
