@@ -67,6 +67,21 @@ ingress:
     - secretName: tls-start-renovate-ingress-dns
       hosts:
         - renovate.oglimmer.com
+  # Per-IP rate limiting for the feedback endpoint, enforced by a Traefik
+  # RateLimit middleware on a dedicated, higher-priority router for that path.
+  rateLimit:
+    enabled: true
+    # Exact path to rate limit (backend context-path /api + controller /feedback).
+    path: /api/feedback
+    # average requests allowed per period, with burst capacity.
+    # 1 request / 1 minute / IP, no burst.
+    average: 1
+    period: 1m
+    burst: 1
+    # How far back in the X-Forwarded-For chain to read the client IP.
+    # 0 = use the connection's source IP as Traefik sees it. Increase to 1 if an
+    # additional L7 proxy/LB sits in front of Traefik and sets X-Forwarded-For.
+    ipStrategyDepth: 0
 
 # Service Account
 serviceAccount:

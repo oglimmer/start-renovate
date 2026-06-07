@@ -15,6 +15,29 @@ This Helm chart deploys the Start Renovate application (Renovate configuration g
 - **Backend**: Spring Boot application (Java 21) serving the API under `/api`
 - **Frontend**: Nuxt.js application serving the web interface
 - **Ingress**: Routes `/api/*` to backend and `/*` to frontend
+- **Rate limiting**: A Traefik `RateLimit` middleware on a dedicated, higher-priority
+  Ingress limits `/api/feedback` to 1 request/minute per client IP
+
+## Rate limiting
+
+The `/api/feedback` endpoint is rate limited at the edge by Traefik (no app-level
+state, survives restarts, works per real client IP). It is implemented as:
+
+- `templates/middleware-ratelimit.yaml` — a Traefik `RateLimit` Middleware CRD
+- `templates/ingress-feedback.yaml` — a separate Ingress with an `Exact` match on
+  `/api/feedback` that references the middleware. The exact path outranks the main
+  Ingress's `/api` prefix, so Traefik routes matching requests through the limiter.
+
+Tunable under `ingress.rateLimit` in `values.yaml` (`average`, `period`, `burst`,
+`ipStrategyDepth`). Set `ipStrategyDepth: 1` if another L7 proxy/LB sits in front
+of Traefik and populates `X-Forwarded-For`. Requires the Traefik CRDs
+(`traefik.io/v1alpha1`) to be installed in the cluster.
+
+## CORS
+
+The backend allows cross-origin requests only from the production origin
+(`https://renovate.oglimmer.com`). Override per-environment with the
+`APP_CORS_ALLOWED_ORIGIN` env var on the backend (e.g. `http://localhost:3000`).
 
 ## Installation
 
@@ -90,6 +113,12 @@ The following table lists the configurable parameters:
 | `frontend.image.tag` | Frontend image tag | `latest` |
 | `ingress.enabled` | Enable ingress | `true` |
 | `ingress.hosts[0].host` | Hostname | `renovate.oglimmer.com` |
+| `ingress.rateLimit.enabled` | Enable Traefik rate limiting on the feedback endpoint | `true` |
+| `ingress.rateLimit.path` | Path to rate limit | `/api/feedback` |
+| `ingress.rateLimit.average` | Allowed requests per period | `1` |
+| `ingress.rateLimit.period` | Rate limit window | `1m` |
+| `ingress.rateLimit.burst` | Burst capacity | `1` |
+| `ingress.rateLimit.ipStrategyDepth` | X-Forwarded-For depth for client IP | `0` |
 
 ## Security
 

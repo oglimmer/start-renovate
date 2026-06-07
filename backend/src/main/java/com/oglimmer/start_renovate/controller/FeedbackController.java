@@ -18,7 +18,7 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/feedback")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "${app.cors.allowed-origin}")
 public class FeedbackController {
 
   private final RenovateFeedbackService service;
