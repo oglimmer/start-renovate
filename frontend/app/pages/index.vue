@@ -733,6 +733,43 @@
             </div>
           </div>
 
+          <!-- Major Update Review -->
+          <div class="border border-gray-200 rounded-lg p-6 mb-4 hover:shadow-md transition-shadow">
+            <div>
+              <div class="flex items-start">
+                <input
+                  id="require-major-approval"
+                  v-model="config.requireMajorApproval"
+                  type="checkbox"
+                  class="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                >
+                <div class="ml-3 flex-1">
+                  <label for="require-major-approval" class="text-lg font-medium text-gray-900 cursor-pointer">
+                    Require Approval for Major Updates
+                  </label>
+                  <p class="text-sm text-gray-600 mt-1">
+                    Gate major version updates behind the Dependency Dashboard — no PR is created until you
+                    tick its checkbox. Adds a <code class="bg-gray-100 px-1 rounded">packageRules</code> entry with
+                    <code class="bg-gray-100 px-1 rounded">dependencyDashboardApproval: true</code> for
+                    <code class="bg-gray-100 px-1 rounded">major</code> updates.
+                  </p>
+                </div>
+              </div>
+
+              <div class="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded">
+                <p class="mb-2">
+                  <strong class="text-gray-700">What it does:</strong> Major updates wait on the dashboard until you
+                  explicitly approve them, instead of opening PRs automatically.
+                </p>
+                <p>
+                  <strong class="text-gray-700">Why you want this:</strong> Majors are the most likely to break and are
+                  never automerged anyway. Gating them keeps unrequested major PRs from piling up while you stay in
+                  control of when to take them on. Recommended.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <!-- Minimum Release Age Option -->
           <div class="border border-gray-200 rounded-lg p-6 mb-4 hover:shadow-md transition-shadow">
             <div>
@@ -837,6 +874,117 @@
                 </p>
                 <p class="text-xs text-gray-600">
                   <strong>Security Best Practice:</strong> This configuration will automatically include a rule to bypass the delay for vulnerability alerts, ensuring critical security patches are applied immediately.
+                </p>
+                <p class="text-xs text-gray-600 mt-1">
+                  <strong>Less churn:</strong> When a delay is set, <code class="bg-white px-1 rounded">internalChecksFilter: "strict"</code> is added automatically so Renovate doesn't even raise a branch/PR until the version clears the waiting period — instead of parking a pending PR for days.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Supply-Chain Hardening -->
+          <div class="border border-gray-200 rounded-lg p-6 mb-4 hover:shadow-md transition-shadow">
+            <div>
+              <div class="mb-4">
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Supply-Chain Hardening</h3>
+                <p class="text-sm text-gray-600">
+                  The hardened defaults from <code class="bg-gray-100 px-1 rounded">config:best-practices</code>:
+                  pin mutable references (Docker tags, Action versions, devDependencies) to immutable
+                  versions, and flag abandoned packages. Renovate keeps pinned versions updated for you, and
+                  with branch automerge these stay on a clean, linear history.
+                </p>
+              </div>
+
+              <div class="space-y-4">
+                <!-- Docker Digests -->
+                <div class="flex items-start">
+                  <input
+                    id="pin-docker-digests"
+                    v-model="config.pinning.dockerDigests"
+                    type="checkbox"
+                    class="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  >
+                  <div class="ml-3 flex-1">
+                    <label for="pin-docker-digests" class="font-medium text-gray-900 cursor-pointer">
+                      Pin Docker Image Digests
+                    </label>
+                    <p class="text-sm text-gray-600 mt-1">
+                      Adds <code class="bg-gray-100 px-1 rounded">docker:pinDigests</code>. Pins images to
+                      <code class="bg-gray-100 px-1 rounded">tag@sha256:…</code> so a moved tag can't silently swap the image underneath you.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- GitHub Action SHAs -->
+                <div class="flex items-start">
+                  <input
+                    id="pin-github-action-digests"
+                    v-model="config.pinning.githubActionDigests"
+                    type="checkbox"
+                    class="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  >
+                  <div class="ml-3 flex-1">
+                    <label for="pin-github-action-digests" class="font-medium text-gray-900 cursor-pointer">
+                      Pin GitHub Action SHAs
+                    </label>
+                    <p class="text-sm text-gray-600 mt-1">
+                      Adds <code class="bg-gray-100 px-1 rounded">helpers:pinGitHubActionDigests</code>. Pins
+                      <code class="bg-gray-100 px-1 rounded">uses:</code> refs to a full commit SHA instead of a mutable tag like <code class="bg-gray-100 px-1 rounded">@v4</code>.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Pin devDependencies -->
+                <div class="flex items-start">
+                  <input
+                    id="pin-dev-dependencies"
+                    v-model="config.pinning.devDependencies"
+                    type="checkbox"
+                    class="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  >
+                  <div class="ml-3 flex-1">
+                    <label for="pin-dev-dependencies" class="font-medium text-gray-900 cursor-pointer">
+                      Pin devDependencies to Exact Versions
+                    </label>
+                    <p class="text-sm text-gray-600 mt-1">
+                      Adds <code class="bg-gray-100 px-1 rounded">:pinDevDependencies</code>. Pins build tools, linters,
+                      and test frameworks to exact versions for reproducible builds. Safe even for published libraries —
+                      consumers never install your devDependencies.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Flag Abandoned Packages -->
+                <div class="flex items-start">
+                  <input
+                    id="flag-abandoned"
+                    v-model="config.flagAbandonedPackages"
+                    type="checkbox"
+                    class="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  >
+                  <div class="ml-3 flex-1">
+                    <label for="flag-abandoned" class="font-medium text-gray-900 cursor-pointer">
+                      Flag Abandoned Packages
+                    </label>
+                    <p class="text-sm text-gray-600 mt-1">
+                      Adds <code class="bg-gray-100 px-1 rounded">abandonments:recommended</code>. Surfaces dependencies
+                      that are no longer maintained (and suggested replacements) so you can act before they become a risk.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded">
+                <p class="mb-2">
+                  <strong class="text-gray-700">What it does:</strong> Replaces mutable tags/ranges with immutable
+                  versions in your Dockerfiles, Compose files, Action workflows, and devDependencies, and flags
+                  unmaintained packages.
+                </p>
+                <p>
+                  <strong class="text-gray-700">Why you want this:</strong> Tags and ranges are mutable — exact
+                  digests/SHAs/versions are not. Pinning is a real supply-chain control that prevents a compromised
+                  or re-pushed reference from changing what you build/run. Enabled by default; presets are no-ops where
+                  the relevant files don't exist. These pin/digest updates are automerged, so they keep a clean git history.
                 </p>
               </div>
             </div>
@@ -1484,9 +1632,15 @@ const parseRenovateJson = (jsonString: string): Partial<RenovateConfig> => {
   const parsed = JSON.parse(jsonString)
   const result: Partial<RenovateConfig> = {}
 
-  // Parse extends for semantic commits
+  // Parse extends for semantic commits and supply-chain hardening presets
   if (parsed.extends && Array.isArray(parsed.extends)) {
     result.semanticCommits = parsed.extends.includes(':semanticCommits')
+    result.pinning = {
+      dockerDigests: parsed.extends.includes('docker:pinDigests'),
+      githubActionDigests: parsed.extends.includes('helpers:pinGitHubActionDigests'),
+      devDependencies: parsed.extends.includes(':pinDevDependencies')
+    }
+    result.flagAbandonedPackages = parsed.extends.includes('abandonments:recommended')
   }
 
   // Parse timezone
@@ -1565,6 +1719,8 @@ const parseRenovateJson = (jsonString: string): Partial<RenovateConfig> => {
 
   // Parse packageRules for automerge settings and grouping
   if (parsed.packageRules && Array.isArray(parsed.packageRules)) {
+    // Default these off; the loop below flips them on if a matching rule exists.
+    result.requireMajorApproval = false
     // Initialize grouping
     result.grouping = {
       npm: false,
@@ -1601,6 +1757,11 @@ const parseRenovateJson = (jsonString: string): Partial<RenovateConfig> => {
       // Check for pre-1.0.0 disable rule
       if (rule.matchCurrentVersion && rule.matchCurrentVersion.includes('^0\\.') && rule.automerge === false) {
         result.disablePreOneAutomerge = true
+      }
+
+      // Check for major-update dashboard-approval gate
+      if (rule.matchUpdateTypes && rule.matchUpdateTypes.includes('major') && rule.dependencyDashboardApproval === true) {
+        result.requireMajorApproval = true
       }
 
       // Check for grouping rules
@@ -1774,7 +1935,13 @@ const applyImportedConfig = (imported: Partial<RenovateConfig>) => {
   if (imported.automergeDevDependencies !== undefined) config.value.automergeDevDependencies = imported.automergeDevDependencies
   if (imported.ignoreTests !== undefined) config.value.ignoreTests = imported.ignoreTests
   if (imported.disablePreOneAutomerge !== undefined) config.value.disablePreOneAutomerge = imported.disablePreOneAutomerge
+  if (imported.requireMajorApproval !== undefined) config.value.requireMajorApproval = imported.requireMajorApproval
   if (imported.minimumReleaseAge !== undefined) config.value.minimumReleaseAge = imported.minimumReleaseAge
+
+  if (imported.pinning !== undefined) {
+    config.value.pinning = { ...config.value.pinning, ...imported.pinning }
+  }
+  if (imported.flagAbandonedPackages !== undefined) config.value.flagAbandonedPackages = imported.flagAbandonedPackages
 
   if (imported.lockFileMaintenance !== undefined) {
     config.value.lockFileMaintenance = { ...config.value.lockFileMaintenance, ...imported.lockFileMaintenance }

@@ -340,9 +340,14 @@ const generateParams = [
   { param: 'automergeDevDependencies', accepts: 'boolean', def: 'false' },
   { param: 'ignoreTests', accepts: 'boolean', def: 'false' },
   { param: 'disablePreOneAutomerge', accepts: 'boolean', def: 'true' },
-  { param: 'minimumReleaseAge', accepts: 'never | 3-days | 7-days | 14-days', def: 'never' },
+  { param: 'requireMajorApproval', accepts: 'boolean', def: 'true' },
+  { param: 'minimumReleaseAge', accepts: 'never | 3-days | 7-days | 14-days', def: '7-days' },
+  { param: 'pinning.dockerDigests', accepts: 'boolean', def: 'true' },
+  { param: 'pinning.githubActionDigests', accepts: 'boolean', def: 'true' },
+  { param: 'pinning.devDependencies', accepts: 'boolean', def: 'true' },
+  { param: 'flagAbandonedPackages', accepts: 'boolean', def: 'true' },
   { param: 'lockFileMaintenance.enabled', accepts: 'boolean', def: 'true' },
-  { param: 'lockFileMaintenance.schedule', accepts: 'same values as schedule', def: 'at-any-time' },
+  { param: 'lockFileMaintenance.schedule', accepts: 'same values as schedule', def: 'weekly' },
   { param: 'lockFileMaintenance.automerge', accepts: 'boolean', def: 'true' },
   { param: 'vulnerabilityAlerts.labels', accepts: 'comma-separated string', def: 'security' },
   { param: 'vulnerabilityAlerts.scheduleOverride', accepts: 'boolean', def: 'true' },
@@ -362,8 +367,13 @@ const generateOutputExample = `{
     "config:recommended",
     ":enableVulnerabilityAlerts",
     ":dependencyDashboard",
-    ":semanticCommits"
+    ":semanticCommits",
+    "docker:pinDigests",
+    "helpers:pinGitHubActionDigests",
+    ":pinDevDependencies",
+    "abandonments:recommended"
   ],
+  "configMigration": true,
   "timezone": "Europe/Berlin",
   "schedule": ["before 5am on monday"],
   "prHourlyLimit": 1,
@@ -372,14 +382,17 @@ const generateOutputExample = `{
   "rangeStrategy": "bump",
   "automergeType": "branch",
   "packageRules": [
-    { "automerge": true, "matchUpdateTypes": ["minor", "patch"] },
+    { "automerge": true, "matchUpdateTypes": ["minor", "patch", "pin", "digest"] },
     { "matchCurrentVersion": "/^0\\\\./", "automerge": false },
+    { "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true },
     { "matchManagers": ["npm"], "groupName": "npm dependencies" },
     { "matchManagers": ["dockerfile", "docker-compose"], "groupName": "Docker dependencies" }
   ],
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["at any time"],
+    "schedule": ["before 5am on monday"],
     "automerge": true
   },
   "vulnerabilityAlerts": {

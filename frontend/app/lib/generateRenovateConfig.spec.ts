@@ -21,10 +21,17 @@ function makeConfig(overrides: Partial<RenovateConfig> = {}): RenovateConfig {
     automergeDevDependencies: false,
     ignoreTests: false,
     disablePreOneAutomerge: true,
-    minimumReleaseAge: 'never',
+    requireMajorApproval: true,
+    minimumReleaseAge: '7-days',
+    pinning: {
+      dockerDigests: true,
+      githubActionDigests: true,
+      devDependencies: true
+    },
+    flagAbandonedPackages: true,
     lockFileMaintenance: {
       enabled: true,
-      schedule: 'at-any-time',
+      schedule: 'weekly',
       automerge: true
     },
     vulnerabilityAlerts: {
@@ -51,6 +58,7 @@ function makeConfig(overrides: Partial<RenovateConfig> = {}): RenovateConfig {
   return {
     ...base,
     ...overrides,
+    pinning: { ...base.pinning, ...(overrides.pinning ?? {}) },
     lockFileMaintenance: { ...base.lockFileMaintenance, ...(overrides.lockFileMaintenance ?? {}) },
     vulnerabilityAlerts: { ...base.vulnerabilityAlerts, ...(overrides.vulnerabilityAlerts ?? {}) },
     grouping: { ...base.grouping, ...(overrides.grouping ?? {}) }
@@ -126,6 +134,104 @@ describe('buildRenovateConfig — vulnerability alert release-age override', () 
     for (const rule of rules) {
       expect(rule).not.toHaveProperty('minimumReleaseAge')
     }
+  })
+})
+
+describe('buildRenovateConfig — safe-by-default settings', () => {
+  it('defaults minimumReleaseAge to a 7-day stabilization window (not "never")', () => {
+    expect(defaultRenovateConfig.minimumReleaseAge).toBe('7-days')
+    const out = buildRenovateConfig(defaultRenovateConfig)
+    expect(out.minimumReleaseAge).toBe('7 days')
+    // ...while security fixes are still never delayed.
+    expect(out.vulnerabilityAlerts.minimumReleaseAge).toBe('0 days')
+  })
+
+  it('keeps branch automerge as the clean-history default and never emits platformAutomerge', () => {
+    expect(defaultRenovateConfig.automergeType).toBe('branch')
+    const out = buildRenovateConfig(defaultRenovateConfig)
+    expect(out.automergeType).toBe('branch')
+    expect(out).not.toHaveProperty('platformAutomerge')
+    const rules = out.packageRules ?? []
+    for (const rule of rules) {
+      expect(rule).not.toHaveProperty('platformAutomerge')
+    }
+  })
+
+  it('always emits configMigration: true', () => {
+    expect(buildRenovateConfig(makeConfig()).configMigration).toBe(true)
+    expect(buildRenovateConfig(defaultRenovateConfig).configMigration).toBe(true)
+  })
+
+  it('enables the config:best-practices hardening presets by default via extends', () => {
+    expect(defaultRenovateConfig.pinning).toEqual({ dockerDigests: true, githubActionDigests: true, devDependencies: true })
+    expect(defaultRenovateConfig.flagAbandonedPackages).toBe(true)
+    const out = buildRenovateConfig(defaultRenovateConfig)
+    expect(out.extends).toContain('docker:pinDigests')
+    expect(out.extends).toContain('helpers:pinGitHubActionDigests')
+    expect(out.extends).toContain(':pinDevDependencies')
+    expect(out.extends).toContain('abandonments:recommended')
+  })
+
+  it('omits each hardening preset when its flag is off', () => {
+    const out = buildRenovateConfig(makeConfig({
+      pinning: { dockerDigests: false, githubActionDigests: false, devDependencies: false },
+      flagAbandonedPackages: false
+    }))
+    expect(out.extends).not.toContain('docker:pinDigests')
+    expect(out.extends).not.toContain('helpers:pinGitHubActionDigests')
+    expect(out.extends).not.toContain(':pinDevDependencies')
+    expect(out.extends).not.toContain('abandonments:recommended')
+  })
+
+  it('automerges pin and digest update types so hardening keeps a clean git history', () => {
+    // minor level → minor + patch + pin + digest
+    const minorRule = buildRenovateConfig(makeConfig({ automergeLevel: 'minor' })).packageRules
+      .find((r: { matchUpdateTypes?: string[] }) => Array.isArray(r.matchUpdateTypes))
+    expect(minorRule.matchUpdateTypes).toEqual(['minor', 'patch', 'pin', 'digest'])
+
+    // patch level → patch + pin + digest
+    const patchRule = buildRenovateConfig(makeConfig({ automergeLevel: 'patch' })).packageRules
+      .find((r: { matchUpdateTypes?: string[] }) => Array.isArray(r.matchUpdateTypes))
+    expect(patchRule.matchUpdateTypes).toEqual(['patch', 'pin', 'digest'])
+  })
+
+  it('defaults lock-file maintenance to a weekly schedule (matches :maintainLockFilesWeekly)', () => {
+    expect(defaultRenovateConfig.lockFileMaintenance.schedule).toBe('weekly')
+    const out = buildRenovateConfig(defaultRenovateConfig)
+    expect(out.lockFileMaintenance.schedule).toEqual(['before 5am on monday'])
+    expect(out.lockFileMaintenance.automerge).toBe(true)
+  })
+
+  it('adds internalChecksFilter: "strict" whenever a release-age delay is set, and omits it for "never"', () => {
+    expect(buildRenovateConfig(defaultRenovateConfig).internalChecksFilter).toBe('strict')
+    expect(buildRenovateConfig(makeConfig({ minimumReleaseAge: '14-days' })).internalChecksFilter).toBe('strict')
+    expect(buildRenovateConfig(makeConfig({ minimumReleaseAge: 'never' })).internalChecksFilter).toBeUndefined()
+  })
+
+  it('gates major updates behind dashboard approval by default, and drops the rule when disabled', () => {
+    expect(defaultRenovateConfig.requireMajorApproval).toBe(true)
+    const gated = buildRenovateConfig(defaultRenovateConfig).packageRules
+      .find((r: { matchUpdateTypes?: string[]; dependencyDashboardApproval?: boolean }) =>
+        r.matchUpdateTypes?.includes('major') && r.dependencyDashboardApproval === true)
+    expect(gated).toBeDefined()
+
+    const off = buildRenovateConfig(makeConfig({ requireMajorApproval: false })).packageRules ?? []
+    expect(off.some((r: { dependencyDashboardApproval?: boolean }) => r.dependencyDashboardApproval === true)).toBe(false)
+  })
+
+  it('keeps the major-approval gate independent of automerge (works even when automerge is disabled)', () => {
+    const out = buildRenovateConfig(makeConfig({ automergeLevel: 'disabled', requireMajorApproval: true }))
+    const gated = (out.packageRules ?? []).find((r: { matchUpdateTypes?: string[]; dependencyDashboardApproval?: boolean }) =>
+      r.matchUpdateTypes?.includes('major') && r.dependencyDashboardApproval === true)
+    expect(gated).toBeDefined()
+  })
+
+  it('exposes hardening flags through the query-param API', () => {
+    expect(configFromQuery({ 'pinning.dockerDigests': 'false' }).pinning.dockerDigests).toBe(false)
+    expect(configFromQuery({ 'pinning.devDependencies': 'false' }).pinning.devDependencies).toBe(false)
+    expect(configFromQuery({ flagAbandonedPackages: 'false' }).flagAbandonedPackages).toBe(false)
+    expect(configFromQuery({ requireMajorApproval: 'false' }).requireMajorApproval).toBe(false)
+    expect(configFromQuery({}).pinning).toEqual({ dockerDigests: true, githubActionDigests: true, devDependencies: true })
   })
 })
 

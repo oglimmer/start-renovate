@@ -10,7 +10,14 @@ export interface RenovateConfig {
   automergeDevDependencies: boolean
   ignoreTests: boolean
   disablePreOneAutomerge: boolean
+  requireMajorApproval: boolean
   minimumReleaseAge: 'never' | '3-days' | '7-days' | '14-days'
+  pinning: {
+    dockerDigests: boolean
+    githubActionDigests: boolean
+    devDependencies: boolean
+  }
+  flagAbandonedPackages: boolean
   lockFileMaintenance: {
     enabled: boolean
     schedule: 'at-any-time' | 'weekly' | 'monthly' | 'weekends' | 'outside-business-hours'
@@ -48,15 +55,48 @@ export const defaultRenovateConfig: RenovateConfig = {
   prLimitStrategy: 'active',
   rebaseWhen: 'behind-base-branch',
   rangeStrategy: 'bump',
+  // 'branch' keeps the git history clean: Renovate commits automerged updates
+  // straight to the base branch with no PR/merge-commit trace. This is a
+  // deliberate default — see the platformAutomerge note in buildRenovateConfig.
   automergeType: 'branch',
   automergeLevel: 'minor',
   automergeDevDependencies: false,
   ignoreTests: false,
   disablePreOneAutomerge: true,
-  minimumReleaseAge: 'never',
+  // Gate major updates behind a Dependency Dashboard checkbox: no PR is created
+  // until a human opts in. Majors are never automerged anyway, so this just
+  // keeps unrequested major PRs from piling up (guide §8/§9). On by default,
+  // consistent with the hardened, low-noise posture.
+  requireMajorApproval: true,
+  // Default to a stabilization window rather than 'never'. The default profile
+  // automerges minor+patch silently onto the base branch, so adopting a release
+  // the instant it is published would commit unvetted third-party code to the
+  // mainline with no chance for the registry to pull a yanked/compromised
+  // version. 7 days is the minimum the Renovate maintainers endorse for
+  // automerged deps; users can dial this to 'never' or '14-days' in the form.
+  minimumReleaseAge: '7-days',
+  // Supply-chain hardening: pin mutable Docker tags / GitHub Action refs to
+  // immutable digests/SHAs (the two pinning presets from config:best-practices).
+  // On by default; Renovate keeps the pinned digests updated, and under the
+  // branch-automerge default those bumps land cleanly with no PR trail.
+  pinning: {
+    dockerDigests: true,
+    githubActionDigests: true,
+    // :pinDevDependencies — pin devDependencies (build tools, linters, test
+    // frameworks) to exact versions for reproducible builds. Safe to default on
+    // even for published libraries: devDependencies aren't installed by your
+    // consumers, so this never over-constrains them (guide §7).
+    devDependencies: true
+  },
+  // abandonments:recommended — flag dependencies that are no longer maintained
+  // and surface suggested replacements. Part of config:best-practices.
+  flagAbandonedPackages: true,
   lockFileMaintenance: {
     enabled: true,
-    schedule: 'at-any-time',
+    // Weekly cadence mirrors config:best-practices' :maintainLockFilesWeekly —
+    // a full lockfile refresh once a week rather than continuously. Keeps churn
+    // predictable; automerge + branch automerge keep these off the PR/history trail.
+    schedule: 'weekly',
     automerge: true
   },
   vulnerabilityAlerts: {
@@ -93,10 +133,29 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
     extends_array.push(':semanticCommits')
   }
 
+  // Digest/SHA pinning presets — supply-chain hardening (see RenovateConfig.pinning).
+  if (config.pinning.dockerDigests) {
+    extends_array.push('docker:pinDigests')
+  }
+  if (config.pinning.githubActionDigests) {
+    extends_array.push('helpers:pinGitHubActionDigests')
+  }
+  if (config.pinning.devDependencies) {
+    extends_array.push(':pinDevDependencies')
+  }
+
+  // Flag abandoned/unmaintained dependencies (config:best-practices component).
+  if (config.flagAbandonedPackages) {
+    extends_array.push('abandonments:recommended')
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const configObject: Record<string, any> = {
     $schema: 'https://docs.renovatebot.com/renovate-schema.json',
-    extends: extends_array
+    extends: extends_array,
+    // Keep deprecated/renamed options auto-migrating via a Renovate-raised PR
+    // instead of silently breaking. Recommended best practice to always enable.
+    configMigration: true
   }
 
   if (config.timezone) {
@@ -133,6 +192,13 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
     configObject.automergeType = config.automergeType
   }
 
+  // NOTE: we intentionally do NOT emit `platformAutomerge`. It delegates merging
+  // to the platform's native PR auto-merge, which always goes through a pull
+  // request and leaves a merge/squash commit + PR trail. That directly conflicts
+  // with this tool's clean-git-history default (automergeType: 'branch', which
+  // commits straight to the base branch). If a future option lets users opt into
+  // PR-based automerge, platformAutomerge can be reintroduced under that branch.
+
   if (config.automergeLevel === 'all') {
     configObject.automerge = true
   } else if (config.automergeLevel !== 'disabled' || config.automergeDevDependencies) {
@@ -144,10 +210,17 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
         automerge: true
       }
 
+      // Always include the low-risk 'pin' and 'digest' update types alongside
+      // the chosen level. These are what the pinning presets (docker:pinDigests,
+      // helpers:pinGitHubActionDigests, :pinDevDependencies) generate; automerging
+      // them keeps those bumps on the clean branch-automerge path instead of
+      // opening human-merged PRs (which would leave merge traces in git history).
+      // The guide endorses automerging pin + digest as low-risk. The 0.x safety
+      // override below still applies and wins via later-rule precedence.
       if (config.automergeLevel === 'patch') {
-        rule.matchUpdateTypes = ['patch']
+        rule.matchUpdateTypes = ['patch', 'pin', 'digest']
       } else if (config.automergeLevel === 'minor') {
-        rule.matchUpdateTypes = ['minor', 'patch']
+        rule.matchUpdateTypes = ['minor', 'patch', 'pin', 'digest']
       }
 
       configObject.packageRules.push(rule)
@@ -177,6 +250,18 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
     configObject.ignoreTests = true
   }
 
+  // Require explicit Dependency Dashboard approval before any major-update PR is
+  // raised. Independent of automerge (majors aren't automerged); this is purely
+  // noise/control. Kept as its own rule so ordering with the automerge rules
+  // above is irrelevant.
+  if (config.requireMajorApproval) {
+    configObject.packageRules = configObject.packageRules || []
+    configObject.packageRules.push({
+      matchUpdateTypes: ['major'],
+      dependencyDashboardApproval: true
+    })
+  }
+
   if (config.minimumReleaseAge !== 'never') {
     const ageMap: Record<string, string> = {
       '3-days': '3 days',
@@ -184,6 +269,10 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
       '14-days': '14 days'
     }
     configObject.minimumReleaseAge = ageMap[config.minimumReleaseAge]
+    // Pair with the release-age delay: with "strict", Renovate won't even raise
+    // a branch/PR until the version clears minimumReleaseAge, instead of parking
+    // a pending PR for days. Less dashboard churn (guide §6).
+    configObject.internalChecksFilter = 'strict'
   }
 
   if (config.lockFileMaintenance.enabled) {
