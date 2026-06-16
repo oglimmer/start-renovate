@@ -128,7 +128,7 @@
                   <tr>
                     <td
                       :colspan="enabledEntries.length + 1"
-                      class="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 font-semibold px-3 py-1"
+                      class="sticky left-0 bg-gradient-to-r from-indigo-50 to-transparent border-l-2 border-indigo-400 text-[11px] uppercase tracking-wider text-indigo-700 font-semibold px-3 py-1.5"
                     >
                       {{ group.group }}
                     </td>
