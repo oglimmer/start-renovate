@@ -41,6 +41,33 @@ spec:
             secretKeyRef:
               name: start-renovate-openai-secret
               key: openai.api-key
+        # GitHub OAuth + Postgres for the authenticated dashboard. All five values live in the
+        # start-renovate-app-secret sealed secret (see helm/sealed-app-secret.yaml.template).
+        - name: GITHUB_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: start-renovate-app-secret
+              key: github.client-id
+        - name: GITHUB_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: start-renovate-app-secret
+              key: github.client-secret
+        - name: DB_URL
+          valueFrom:
+            secretKeyRef:
+              name: start-renovate-app-secret
+              key: db.url
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: start-renovate-app-secret
+              key: db.username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: start-renovate-app-secret
+              key: db.password
         - name: JAVA_OPTS
           value: {{ .Values.backend.javaOpts | quote }}
         startupProbe:

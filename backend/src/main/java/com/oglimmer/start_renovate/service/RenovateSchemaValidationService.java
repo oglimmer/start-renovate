@@ -26,8 +26,7 @@ public class RenovateSchemaValidationService {
   public void init() {
     try {
       JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
-      InputStream schemaStream =
-          getClass().getResourceAsStream("/renovate-schema.json");
+      InputStream schemaStream = getClass().getResourceAsStream("/renovate-schema.json");
       if (schemaStream == null) {
         throw new IllegalStateException("Could not load renovate-schema.json from resources");
       }

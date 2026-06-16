@@ -16,6 +16,12 @@
             Read the REST API docs
           </NuxtLink>
         </p>
+        <p class="text-sm text-gray-500 mt-1">
+          Managing several repos?
+          <NuxtLink to="/dashboard" class="text-indigo-600 hover:text-indigo-800 underline">
+            Compare their config on the dashboard
+          </NuxtLink>
+        </p>
       </div>
 
       <div class="bg-white shadow-xl rounded-lg p-8 mb-6">

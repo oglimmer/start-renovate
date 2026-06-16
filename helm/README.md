@@ -9,11 +9,17 @@ This Helm chart deploys the Start Renovate application (Renovate configuration g
 - Sealed Secrets controller installed in your cluster
 - Container registry with your images
 - OpenAI API key
+- A reachable PostgreSQL database (for the dashboard's per-user repo selection)
+- A GitHub OAuth App (for the dashboard login) with callback URL
+  `https://renovate.oglimmer.com/api/login/oauth2/code/github`
 
 ## Components
 
 - **Backend**: Spring Boot application (Java 21) serving the API under `/api`
 - **Frontend**: Nuxt.js application serving the web interface
+- **Dashboard**: GitHub-authenticated `/dashboard` page that compares Renovate configuration
+  across a user's repositories. Login uses GitHub OAuth (servlet Spring Security); the per-user
+  set of tracked repositories is persisted in PostgreSQL (Flyway-managed schema)
 - **Ingress**: Routes `/api/*` to backend and `/*` to frontend
 - **Rate limiting**: A Traefik `RateLimit` middleware on a dedicated, higher-priority
   Ingress limits `/api/feedback` to 1 request/minute per client IP
@@ -67,6 +73,58 @@ rm /tmp/openai-secret.yaml
 # Apply the sealed secret to your cluster
 kubectl apply -f helm/sealed-openai-secret.yaml
 ```
+
+### 1a. Provision the Postgres role and database (dashboard)
+
+The dashboard persists each user's tracked-repo selection in the cluster's shared
+Postgres (`groundhog2k/postgres`, reachable as `postgres.default.svc:5432`). Following
+the per-app convention in that chart's repo (role `<app>-app`, database `<app>_prod`,
+app role **owns** its DB so Flyway can create tables under PG 15+), create them once as
+the superuser:
+
+```bash
+# Pick a strong password for the app role; you'll put it in the sealed secret below.
+APP_DB_PASS='choose-a-strong-password'
+
+kubectl exec -i postgres-0 -- psql -U postgres -v ON_ERROR_STOP=1 <<SQL
+CREATE ROLE "start-renovate-app" WITH LOGIN PASSWORD '${APP_DB_PASS}';
+CREATE DATABASE start_renovate_prod OWNER "start-renovate-app";
+SQL
+```
+
+The app uses `spring.flyway` (migrations under `db/migration`) to create its schema and
+`jpa.ddl-auto=validate` to verify it, so no manual table creation is needed.
+
+### 1b. Create the Sealed Secret for GitHub OAuth + Postgres (dashboard)
+
+The dashboard needs GitHub OAuth credentials and the Postgres connection, delivered via the
+`start-renovate-app-secret` sealed secret. Use the same `APP_DB_PASS` from step 1a. Follow
+`helm/sealed-app-secret.yaml.template`:
+
+```bash
+cat <<EOF > /tmp/app-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: start-renovate-app-secret
+  namespace: default
+type: Opaque
+stringData:
+  github.client-id: "Iv1.xxxxxxxxxxxx"
+  github.client-secret: "your-github-oauth-client-secret"
+  db.url: "jdbc:postgresql://postgres.default.svc:5432/start_renovate_prod"
+  db.username: "start-renovate-app"
+  db.password: "${APP_DB_PASS}"
+EOF
+
+kubeseal --format yaml < /tmp/app-secret.yaml > helm/sealed-app-secret.yaml
+rm /tmp/app-secret.yaml
+kubectl apply -f helm/sealed-app-secret.yaml
+```
+
+The GitHub OAuth App's **Authorization callback URL** must be
+`https://renovate.oglimmer.com/api/login/oauth2/code/github`. The requested scopes
+(`repo`, `read:org`) are configured in the backend, not the secret.
 
 ### 2. Update values.yaml
 

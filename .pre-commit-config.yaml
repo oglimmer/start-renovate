@@ -19,7 +19,9 @@ repos:
     rev: v6.0.0
     hooks:
       - id: end-of-file-fixer
+        exclude: '^README\.cpt$'
       - id: trailing-whitespace
+        exclude: '^README\.cpt$'
       - id: check-added-large-files
       - id: check-case-conflict
       - id: check-merge-conflict

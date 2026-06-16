@@ -7,7 +7,6 @@ import com.oglimmer.start_renovate.service.RenovateFeedbackService;
 import com.oglimmer.start_renovate.service.RenovateSchemaValidationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,7 +17,6 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/feedback")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "${app.cors.allowed-origin}")
 public class FeedbackController {
 
   private final RenovateFeedbackService service;

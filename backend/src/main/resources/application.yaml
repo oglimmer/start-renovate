@@ -2,16 +2,39 @@
 spring:
   application:
     name: "start-renovate"
+  datasource:
+    url: "${DB_URL:jdbc:postgresql://localhost:5432/renovate}"
+    username: "${DB_USERNAME:renovate}"
+    password: "${DB_PASSWORD:renovate}"
+  jpa:
+    hibernate:
+      ddl-auto: "validate"
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: "classpath:db/migration"
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            client-id: "${GITHUB_CLIENT_ID}"
+            client-secret: "${GITHUB_CLIENT_SECRET}"
+            scope: "repo,read:org"
+        provider:
+          github: {}
 server:
   servlet:
     context-path: "/api"
+  forward-headers-strategy: "framework"
 openai:
   base-url: "https://api.openai.com/v1"
   api-key: "${OPENAI_API_KEY}"
   model: "gpt-5-mini"
   maxOutputTokens: 800
+github:
+  api-base-url: "https://api.github.com"
 app:
   cors:
-    # Origin allowed to call the API via CORS. Defaults to the production domain;
-    # override with APP_CORS_ALLOWED_ORIGIN (e.g. http://localhost:3000) for local dev.
     allowed-origin: "${APP_CORS_ALLOWED_ORIGIN:https://renovate.oglimmer.com}"
+  frontend-redirect-uri: "${APP_FRONTEND_REDIRECT_URI:/dashboard}"

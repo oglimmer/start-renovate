@@ -5,9 +5,18 @@ export default defineNuxtConfig({
   modules: ['@nuxtjs/tailwindcss', '@nuxt/eslint'],
   nitro: {
     preset: 'github-pages',
+    // Local dev: forward /api to the backend so the SPA, the session cookie and the CSRF
+    // cookie/header are all same-origin (http://localhost:3000). In production the frontend and
+    // backend already share an origin, so /api is reached directly.
+    devProxy: {
+      '/api': {
+        target: 'http://localhost:8080/api',
+        changeOrigin: true
+      }
+    },
     prerender: {
       crawlLinks: true,
-      routes: ['/', '/developers', '/generate']
+      routes: ['/', '/developers', '/generate', '/dashboard']
     }
   },
   app: {
