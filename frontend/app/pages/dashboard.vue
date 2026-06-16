@@ -109,7 +109,13 @@
                     class="px-3 py-2 text-left font-medium text-gray-700 whitespace-nowrap"
                   >
                     <div class="flex flex-col">
-                      <span :title="entry.fullName">{{ shortName(entry.fullName) }}</span>
+                      <a
+                        :href="`https://github.com/${entry.fullName}`"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        :title="entry.fullName"
+                        class="text-indigo-600 hover:text-indigo-800 hover:underline"
+                      >{{ shortName(entry.fullName) }}</a>
                       <span v-if="!entry.hasRenovate" class="text-[10px] font-normal text-amber-500">no config</span>
                       <span v-else-if="entry.error" class="text-[10px] font-normal text-red-500" :title="entry.error">parse error</span>
                       <span v-else class="text-[10px] font-normal text-gray-400">{{ entry.configFilePath }}</span>
