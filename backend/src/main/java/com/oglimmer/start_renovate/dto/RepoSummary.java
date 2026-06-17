@@ -2,7 +2,10 @@
 package com.oglimmer.start_renovate.dto;
 
 /**
- * One repository the user can see, with a flag indicating whether it is tracked on the dashboard.
+ * One repository the user can see. {@code enabled} indicates whether it is tracked on the
+ * dashboard; {@code hasRenovateConfig} whether a dedicated Renovate config file already exists at
+ * the default-branch tip (detected cheaply during listing — an embedded {@code package.json}
+ * "renovate" key is not counted here).
  */
 public record RepoSummary(
     String fullName,
@@ -10,4 +13,5 @@ public record RepoSummary(
     String owner,
     boolean isPrivate,
     String defaultBranch,
-    boolean enabled) {}
+    boolean enabled,
+    boolean hasRenovateConfig) {}

@@ -71,8 +71,13 @@
                 class="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
                 @change="toggleRepo(repo)"
               >
-              <span class="truncate text-gray-700" :title="repo.fullName">{{ repo.fullName }}</span>
-              <span v-if="repo.isPrivate" class="ml-auto text-[10px] uppercase tracking-wide text-gray-400">private</span>
+              <span class="truncate text-gray-700 flex-1 min-w-0" :title="repo.fullName">{{ repo.fullName }}</span>
+              <span
+                v-if="repo.hasRenovateConfig"
+                class="shrink-0 text-[10px] font-medium text-green-600"
+                title="Already has a Renovate config file"
+              >✓ config</span>
+              <span v-if="repo.isPrivate" class="shrink-0 text-[10px] uppercase tracking-wide text-gray-400">private</span>
             </label>
             <div v-if="filteredRepos.length === 0" class="text-sm text-gray-400 py-4 text-center">
               No repositories match.

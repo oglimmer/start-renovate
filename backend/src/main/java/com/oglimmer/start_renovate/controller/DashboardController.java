@@ -73,7 +73,8 @@ public class DashboardController {
                                 r.owner(),
                                 r.isPrivate(),
                                 r.defaultBranch(),
-                                enabled.contains(r.fullName())))
+                                enabled.contains(r.fullName()),
+                                r.hasRenovateConfig()))
                     .toList());
   }
 

@@ -8,7 +8,10 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.oglimmer.start_renovate.config.GitHubProperties;
 import com.oglimmer.start_renovate.dto.RepoSummary;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
@@ -26,8 +29,11 @@ public class GitHubApiService {
   /** Defensive cap on repo-list pagination to bound memory and rate-limit usage. */
   private static final int MAX_REPO_PAGES = 30;
 
-  /** GitHub's maximum page size for list endpoints. */
+  /** GitHub's maximum page size for list endpoints (REST and GraphQL alike). */
   private static final int PER_PAGE = 100;
+
+  /** GraphQL endpoint, relative to the REST base URL. Holds for github.com; GHE differs. */
+  private static final String GRAPHQL_PATH = "/graphql";
 
   private final WebClient gitHubWebClient;
   private final GitHubProperties props;
@@ -59,13 +65,147 @@ public class GitHubApiService {
   }
 
   /**
+   * Lists every repository the user can access, flagging which already carry a dedicated Renovate
+   * config file. A single GraphQL query both pages the repo list and probes each repo's config
+   * paths via {@code object(expression: "HEAD:<path>")} — one network round-trip per 100 repos
+   * instead of one REST contents call per repo. Falls back to the plain REST listing (with every
+   * {@code hasRenovateConfig} false) if GraphQL is unavailable, so the picker never breaks.
+   */
+  public Mono<List<RepoSummary>> listAllRepos(String token) {
+    return fetchRepoGraphPage(token, null)
+        .expand(
+            page -> page.hasNextPage() ? fetchRepoGraphPage(token, page.endCursor()) : Mono.empty())
+        .take(MAX_REPO_PAGES)
+        .concatMapIterable(RepoGraphPage::repos)
+        .collectSortedList(Comparator.comparing(RepoSummary::fullName))
+        .onErrorResume(
+            ex -> {
+              log.warn(
+                  "GraphQL repo listing failed ({}); falling back to REST without Renovate flags",
+                  ex.getMessage());
+              return listAllReposViaRest(token);
+            });
+  }
+
+  // --- GraphQL listing (lists repos + detects Renovate config in one query) --------------------
+
+  private record RepoGraphPage(List<RepoSummary> repos, boolean hasNextPage, String endCursor) {}
+
+  private Mono<RepoGraphPage> fetchRepoGraphPage(String token, String cursor) {
+    Map<String, Object> variables = new HashMap<>();
+    variables.put("cursor", cursor); // null on the first page
+    String body;
+    try {
+      body =
+          lenientMapper.writeValueAsString(
+              Map.of("query", buildReposQuery(), "variables", variables));
+    } catch (Exception ex) {
+      return Mono.error(ex);
+    }
+    return gitHubWebClient
+        .post()
+        .uri(GRAPHQL_PATH)
+        .headers(h -> h.setBearerAuth(token))
+        .header(HttpHeaders.CONTENT_TYPE, "application/json")
+        .bodyValue(body)
+        .retrieve()
+        .toEntity(String.class)
+        .map(response -> parseRepoGraphPage(response.getBody()));
+  }
+
+  /**
+   * Builds the paged repo query, deriving one aliased {@code object(...)} existence probe per
+   * configured Renovate config path so the detected paths never drift from {@link
+   * GitHubApiService#fetchRenovateConfig}.
+   */
+  private String buildReposQuery() {
+    List<String> paths = props.getConfigPaths();
+    StringBuilder probes = new StringBuilder();
+    for (int i = 0; i < paths.size(); i++) {
+      probes
+          .append("c")
+          .append(i)
+          .append(": object(expression: \"HEAD:")
+          .append(paths.get(i))
+          .append("\") { __typename }\n");
+    }
+    return """
+        query($cursor: String) {
+          viewer {
+            repositories(first: %d, after: $cursor, \
+        affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
+              pageInfo { hasNextPage endCursor }
+              nodes {
+                nameWithOwner
+                name
+                owner { login }
+                isPrivate
+                defaultBranchRef { name }
+                %s
+              }
+            }
+          }
+        }
+        """
+        .formatted(PER_PAGE, probes.toString());
+  }
+
+  private RepoGraphPage parseRepoGraphPage(String body) {
+    JsonNode root = parseJsonOrNull(body);
+    if (root == null) {
+      throw new IllegalStateException("Empty GraphQL response");
+    }
+    JsonNode repositories = root.path("data").path("viewer").path("repositories");
+    if (!repositories.has("nodes")) {
+      // Top-level failure (bad token scope, schema error): bail so the caller falls back to REST.
+      throw new IllegalStateException("GraphQL repo listing returned no data: " + root.path("errors"));
+    }
+    JsonNode errors = root.path("errors");
+    if (errors.isArray() && !errors.isEmpty()) {
+      log.warn("GraphQL repo listing returned partial errors: {}", errors);
+    }
+    int pathCount = props.getConfigPaths().size();
+    List<RepoSummary> repos = new ArrayList<>();
+    for (JsonNode node : repositories.path("nodes")) {
+      String fullName = node.path("nameWithOwner").asText(null);
+      if (fullName == null) {
+        continue;
+      }
+      boolean hasConfig = false;
+      for (int i = 0; i < pathCount; i++) {
+        // A present file resolves to a Blob object; an absent one is JSON null.
+        if (node.path("c" + i).isObject()) {
+          hasConfig = true;
+          break;
+        }
+      }
+      repos.add(
+          new RepoSummary(
+              fullName,
+              node.path("name").asText(null),
+              node.path("owner").path("login").asText(null),
+              node.path("isPrivate").asBoolean(false),
+              node.path("defaultBranchRef").path("name").asText(null),
+              false,
+              hasConfig));
+    }
+    JsonNode pageInfo = repositories.path("pageInfo");
+    return new RepoGraphPage(
+        repos,
+        pageInfo.path("hasNextPage").asBoolean(false),
+        pageInfo.path("endCursor").asText(null));
+  }
+
+  // --- REST listing (fallback; cannot detect Renovate config cheaply) --------------------------
+
+  /**
    * Lists every repository the user can access. Uses page-number pagination (more robust than
    * re-feeding GitHub's pre-encoded {@code Link} URLs back through the WebClient, which
    * double-encodes them) and the broad default affiliation — owner + collaborator + organization
    * member — so nothing the user can see is missed. Stops when a page returns fewer than {@link
    * #PER_PAGE} repos.
    */
-  public Mono<List<RepoSummary>> listAllRepos(String token) {
+  private Mono<List<RepoSummary>> listAllReposViaRest(String token) {
     return fetchRepoPage(token, 1)
         .expand(
             page -> page.size() < PER_PAGE ? Mono.empty() : fetchRepoPage(token, page.page() + 1))
@@ -128,6 +268,7 @@ public class GitHubApiService {
               node.path("owner").path("login").asText(null),
               node.path("private").asBoolean(false),
               node.path("default_branch").asText(null),
+              false,
               false));
     }
     return repos;

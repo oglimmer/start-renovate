@@ -110,4 +110,5 @@ export interface RepoSummary {
   isPrivate: boolean
   defaultBranch: string | null
   enabled: boolean
+  hasRenovateConfig: boolean
 }
