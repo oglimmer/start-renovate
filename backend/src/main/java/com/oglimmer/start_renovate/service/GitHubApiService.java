@@ -10,8 +10,10 @@ import com.oglimmer.start_renovate.dto.RepoSummary;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
@@ -26,14 +28,20 @@ import reactor.core.publisher.Mono;
 @Service
 public class GitHubApiService {
 
-  /** Defensive cap on repo-list pagination to bound memory and rate-limit usage. */
+  /** Defensive cap on REST repo-list pagination to bound memory and rate-limit usage. */
   private static final int MAX_REPO_PAGES = 30;
 
-  /** GitHub's maximum page size for list endpoints (REST and GraphQL alike). */
+  /** GitHub's maximum page size for REST list endpoints. */
   private static final int PER_PAGE = 100;
 
-  /** GraphQL endpoint, relative to the REST base URL. Holds for github.com; GHE differs. */
-  private static final String GRAPHQL_PATH = "/graphql";
+  /**
+   * How many repos to probe for a Renovate config concurrently while building the listing. Each
+   * probe is one (occasionally two) git-trees call; this bounds in-flight requests so a user with
+   * hundreds of repos stays well within REST rate limits and the listing completes inside the
+   * servlet async timeout. (A single combined GraphQL query was tried instead, but per-repo file
+   * probes made it 502 / time out for accounts with many org repos.)
+   */
+  private static final int CONFIG_DETECTION_CONCURRENCY = 16;
 
   private final WebClient gitHubWebClient;
   private final GitHubProperties props;
@@ -66,146 +74,136 @@ public class GitHubApiService {
 
   /**
    * Lists every repository the user can access, flagging which already carry a dedicated Renovate
-   * config file. A single GraphQL query both pages the repo list and probes each repo's config
-   * paths via {@code object(expression: "HEAD:<path>")} — one network round-trip per 100 repos
-   * instead of one REST contents call per repo. Falls back to the plain REST listing (with every
-   * {@code hasRenovateConfig} false) if GraphQL is unavailable, so the picker never breaks.
+   * config file. Repos are listed via REST (fast, cheap), then each is probed for a config file
+   * concurrently (bounded by {@link #CONFIG_DETECTION_CONCURRENCY}). A per-repo probe failure
+   * resolves to {@code hasRenovateConfig=false} rather than failing the whole listing, so the
+   * picker is always populated.
    */
   public Mono<List<RepoSummary>> listAllRepos(String token) {
-    return fetchRepoGraphPage(token, null)
-        .expand(
-            page -> page.hasNextPage() ? fetchRepoGraphPage(token, page.endCursor()) : Mono.empty())
-        .take(MAX_REPO_PAGES)
-        .concatMapIterable(RepoGraphPage::repos)
-        .collectSortedList(Comparator.comparing(RepoSummary::fullName))
-        .onErrorResume(
-            ex -> {
-              log.warn(
-                  "GraphQL repo listing failed ({}); falling back to REST without Renovate flags",
-                  ex.getMessage());
-              return listAllReposViaRest(token);
-            });
+    return listRepoMetadata(token)
+        .flatMapMany(Flux::fromIterable)
+        .flatMapSequential(
+            repo ->
+                hasRenovateConfigFile(token, repo.fullName())
+                    .map(hasConfig -> withRenovateConfig(repo, hasConfig)),
+            CONFIG_DETECTION_CONCURRENCY)
+        .collectSortedList(Comparator.comparing(RepoSummary::fullName));
   }
 
-  // --- GraphQL listing (lists repos + detects Renovate config in one query) --------------------
+  private static RepoSummary withRenovateConfig(RepoSummary repo, boolean hasConfig) {
+    return new RepoSummary(
+        repo.fullName(),
+        repo.name(),
+        repo.owner(),
+        repo.isPrivate(),
+        repo.defaultBranch(),
+        repo.enabled(),
+        hasConfig);
+  }
 
-  private record RepoGraphPage(List<RepoSummary> repos, boolean hasNextPage, String endCursor) {}
+  // --- Renovate config detection (one git-trees call per repo, parallelized) -------------------
 
-  private Mono<RepoGraphPage> fetchRepoGraphPage(String token, String cursor) {
-    Map<String, Object> variables = new HashMap<>();
-    variables.put("cursor", cursor); // null on the first page
-    String body;
-    try {
-      body =
-          lenientMapper.writeValueAsString(
-              Map.of("query", buildReposQuery(), "variables", variables));
-    } catch (Exception ex) {
-      return Mono.error(ex);
+  /**
+   * Cheaply detects whether a repo carries a dedicated Renovate config file at its default-branch
+   * tip via the git-trees API: one call for the root tree (covers root-level config paths) plus,
+   * only when a configured {@code <dir>/<file>} path applies and that directory exists, one extra
+   * call for the subtree. Any failure (empty repo, missing default branch, transient error)
+   * resolves to {@code false} so a single bad repo never sinks the listing. {@code package.json}'s
+   * embedded {@code "renovate"} key is intentionally NOT probed here — that stays a dashboard-time
+   * concern, mirroring {@link #fetchRenovateConfig}.
+   */
+  private Mono<Boolean> hasRenovateConfigFile(String token, String fullName) {
+    Set<String> rootNames = new HashSet<>();
+    Map<String, Set<String>> subdirNames = new HashMap<>(); // first path segment -> filenames
+    for (String path : props.getConfigPaths()) {
+      int slash = path.indexOf('/');
+      if (slash < 0) {
+        rootNames.add(path);
+      } else {
+        // Config paths only ever nest one level (e.g. ".github/renovate.json").
+        subdirNames
+            .computeIfAbsent(path.substring(0, slash), k -> new HashSet<>())
+            .add(path.substring(slash + 1));
+      }
+    }
+    return fetchTree(token, fullName, "HEAD")
+        .flatMap(
+            rootTree -> {
+              if (treeHasBlob(rootTree, rootNames)) {
+                return Mono.just(true);
+              }
+              List<Mono<Boolean>> subChecks = new ArrayList<>();
+              for (Map.Entry<String, Set<String>> dir : subdirNames.entrySet()) {
+                String sha = subtreeSha(rootTree, dir.getKey());
+                if (sha != null) {
+                  subChecks.add(
+                      fetchTree(token, fullName, sha)
+                          .map(subtree -> treeHasBlob(subtree, dir.getValue()))
+                          .defaultIfEmpty(false));
+                }
+              }
+              return subChecks.isEmpty()
+                  ? Mono.just(false)
+                  : Flux.merge(subChecks).any(Boolean::booleanValue);
+            })
+        .defaultIfEmpty(false);
+  }
+
+  /** GET a git tree by ref or SHA; empty Mono on any error (absent ref, empty repo, transient). */
+  private Mono<JsonNode> fetchTree(String token, String fullName, String treeRef) {
+    String[] ownerRepo = fullName.split("/", 2);
+    if (ownerRepo.length < 2) {
+      return Mono.empty();
     }
     return gitHubWebClient
-        .post()
-        .uri(GRAPHQL_PATH)
+        .get()
+        .uri(
+            b ->
+                b.path("/repos")
+                    .pathSegment(ownerRepo[0], ownerRepo[1], "git", "trees", treeRef)
+                    .build())
         .headers(h -> h.setBearerAuth(token))
-        .header(HttpHeaders.CONTENT_TYPE, "application/json")
-        .bodyValue(body)
         .retrieve()
         .toEntity(String.class)
-        .map(response -> parseRepoGraphPage(response.getBody()));
+        .flatMap(response -> Mono.justOrEmpty(parseJsonOrNull(response.getBody())))
+        .onErrorResume(WebClientResponseException.class, ex -> Mono.empty());
   }
+
+  /** True if the tree holds a top-level blob whose name is in {@code names}. */
+  private static boolean treeHasBlob(JsonNode tree, Set<String> names) {
+    if (names.isEmpty()) {
+      return false;
+    }
+    for (JsonNode entry : tree.path("tree")) {
+      if ("blob".equals(entry.path("type").asText())
+          && names.contains(entry.path("path").asText())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** SHA of the named top-level subtree, or null if absent. */
+  private static String subtreeSha(JsonNode tree, String dir) {
+    for (JsonNode entry : tree.path("tree")) {
+      if ("tree".equals(entry.path("type").asText()) && dir.equals(entry.path("path").asText())) {
+        return entry.path("sha").asText(null);
+      }
+    }
+    return null;
+  }
+
+  // --- REST listing --------------------------------------------------------------------------
 
   /**
-   * Builds the paged repo query, deriving one aliased {@code object(...)} existence probe per
-   * configured Renovate config path so the detected paths never drift from {@link
-   * GitHubApiService#fetchRenovateConfig}.
-   */
-  private String buildReposQuery() {
-    List<String> paths = props.getConfigPaths();
-    StringBuilder probes = new StringBuilder();
-    for (int i = 0; i < paths.size(); i++) {
-      probes
-          .append("c")
-          .append(i)
-          .append(": object(expression: \"HEAD:")
-          .append(paths.get(i))
-          .append("\") { __typename }\n");
-    }
-    return """
-        query($cursor: String) {
-          viewer {
-            repositories(first: %d, after: $cursor, \
-        affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
-              pageInfo { hasNextPage endCursor }
-              nodes {
-                nameWithOwner
-                name
-                owner { login }
-                isPrivate
-                defaultBranchRef { name }
-                %s
-              }
-            }
-          }
-        }
-        """
-        .formatted(PER_PAGE, probes.toString());
-  }
-
-  private RepoGraphPage parseRepoGraphPage(String body) {
-    JsonNode root = parseJsonOrNull(body);
-    if (root == null) {
-      throw new IllegalStateException("Empty GraphQL response");
-    }
-    JsonNode repositories = root.path("data").path("viewer").path("repositories");
-    if (!repositories.has("nodes")) {
-      // Top-level failure (bad token scope, schema error): bail so the caller falls back to REST.
-      throw new IllegalStateException("GraphQL repo listing returned no data: " + root.path("errors"));
-    }
-    JsonNode errors = root.path("errors");
-    if (errors.isArray() && !errors.isEmpty()) {
-      log.warn("GraphQL repo listing returned partial errors: {}", errors);
-    }
-    int pathCount = props.getConfigPaths().size();
-    List<RepoSummary> repos = new ArrayList<>();
-    for (JsonNode node : repositories.path("nodes")) {
-      String fullName = node.path("nameWithOwner").asText(null);
-      if (fullName == null) {
-        continue;
-      }
-      boolean hasConfig = false;
-      for (int i = 0; i < pathCount; i++) {
-        // A present file resolves to a Blob object; an absent one is JSON null.
-        if (node.path("c" + i).isObject()) {
-          hasConfig = true;
-          break;
-        }
-      }
-      repos.add(
-          new RepoSummary(
-              fullName,
-              node.path("name").asText(null),
-              node.path("owner").path("login").asText(null),
-              node.path("isPrivate").asBoolean(false),
-              node.path("defaultBranchRef").path("name").asText(null),
-              false,
-              hasConfig));
-    }
-    JsonNode pageInfo = repositories.path("pageInfo");
-    return new RepoGraphPage(
-        repos,
-        pageInfo.path("hasNextPage").asBoolean(false),
-        pageInfo.path("endCursor").asText(null));
-  }
-
-  // --- REST listing (fallback; cannot detect Renovate config cheaply) --------------------------
-
-  /**
-   * Lists every repository the user can access. Uses page-number pagination (more robust than
+   * Lists every repository the user can access (metadata only; Renovate flags are filled in
+   * afterwards by {@link #hasRenovateConfigFile}). Uses page-number pagination (more robust than
    * re-feeding GitHub's pre-encoded {@code Link} URLs back through the WebClient, which
    * double-encodes them) and the broad default affiliation — owner + collaborator + organization
    * member — so nothing the user can see is missed. Stops when a page returns fewer than {@link
    * #PER_PAGE} repos.
    */
-  private Mono<List<RepoSummary>> listAllReposViaRest(String token) {
+  private Mono<List<RepoSummary>> listRepoMetadata(String token) {
     return fetchRepoPage(token, 1)
         .expand(
             page -> page.size() < PER_PAGE ? Mono.empty() : fetchRepoPage(token, page.page() + 1))

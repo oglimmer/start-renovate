@@ -47,10 +47,11 @@
       <div v-else class="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <!-- Repo picker -->
         <div class="lg:col-span-1 bg-white shadow rounded-lg p-4 h-fit">
-          <h2 class="text-sm font-semibold text-gray-900 mb-3">
+          <h2 class="text-sm font-semibold text-gray-900">
             Repositories
             <span class="text-gray-400 font-normal">({{ enabledCount }} tracked)</span>
           </h2>
+          <p class="text-[11px] text-gray-400 mb-3 mt-0.5">Showing only repos with a Renovate config.</p>
           <input
             v-model="repoFilter"
             type="text"
@@ -72,15 +73,10 @@
                 @change="toggleRepo(repo)"
               >
               <span class="truncate text-gray-700 flex-1 min-w-0" :title="repo.fullName">{{ repo.fullName }}</span>
-              <span
-                v-if="repo.hasRenovateConfig"
-                class="shrink-0 text-[10px] font-medium text-green-600"
-                title="Already has a Renovate config file"
-              >✓ config</span>
               <span v-if="repo.isPrivate" class="shrink-0 text-[10px] uppercase tracking-wide text-gray-400">private</span>
             </label>
             <div v-if="filteredRepos.length === 0" class="text-sm text-gray-400 py-4 text-center">
-              No repositories match.
+              {{ repoFilter.trim() ? 'No repositories match.' : 'No repositories with a Renovate config.' }}
             </div>
           </div>
         </div>
@@ -196,10 +192,16 @@ const enabledEntries = computed<RepoDashboardEntry[]>(() => dashboard.value?.rep
 const enabledCount = computed(() => repos.value.filter(r => r.enabled).length)
 const differencesHighlight = computed(() => enabledEntries.value.length >= 2)
 
+// Only repos that already carry a Renovate config are worth comparing. Already-tracked repos stay
+// listed regardless, so one can always untrack a repo whose config was later removed.
+const selectableRepos = computed(() =>
+  repos.value.filter(r => r.hasRenovateConfig || r.enabled),
+)
+
 const filteredRepos = computed(() => {
   const q = repoFilter.value.trim().toLowerCase()
-  if (!q) return repos.value
-  return repos.value.filter(r => r.fullName.toLowerCase().includes(q))
+  if (!q) return selectableRepos.value
+  return selectableRepos.value.filter(r => r.fullName.toLowerCase().includes(q))
 })
 
 const visibleGroups = computed(() => {
