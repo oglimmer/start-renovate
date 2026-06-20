@@ -1,15 +1,14 @@
 /* Copyright (c) 2025 by oglimmer.com / Oliver Zimpasser. All rights reserved. */
 package com.oglimmer.start_renovate.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.networknt.schema.JsonSchema;
-import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
-import com.networknt.schema.ValidationMessage;
+import com.networknt.schema.Error;
+import com.networknt.schema.InputFormat;
+import com.networknt.schema.Schema;
+import com.networknt.schema.SchemaRegistry;
+import com.networknt.schema.SpecificationVersion;
 import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
-import java.util.Set;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,18 +18,17 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class RenovateSchemaValidationService {
 
-  private final ObjectMapper objectMapper;
-  private JsonSchema schema;
+  private Schema schema;
 
   @PostConstruct
   public void init() {
     try {
-      JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
+      SchemaRegistry registry = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_7);
       InputStream schemaStream = getClass().getResourceAsStream("/renovate-schema.json");
       if (schemaStream == null) {
         throw new IllegalStateException("Could not load renovate-schema.json from resources");
       }
-      schema = factory.getSchema(schemaStream);
+      schema = registry.getSchema(schemaStream);
       log.info("Renovate JSON schema loaded successfully");
     } catch (Exception e) {
       log.error("Failed to load Renovate JSON schema", e);
@@ -40,8 +38,7 @@ public class RenovateSchemaValidationService {
 
   public ValidationResult validate(String jsonString) {
     try {
-      JsonNode jsonNode = objectMapper.readTree(jsonString);
-      Set<ValidationMessage> errors = schema.validate(jsonNode);
+      List<Error> errors = schema.validate(jsonString, InputFormat.JSON);
 
       if (errors.isEmpty()) {
         return ValidationResult.success();
@@ -59,7 +56,7 @@ public class RenovateSchemaValidationService {
       return new ValidationResult(true, null);
     }
 
-    public static ValidationResult failure(Set<ValidationMessage> errors) {
+    public static ValidationResult failure(List<Error> errors) {
       StringBuilder sb = new StringBuilder("JSON validation failed:\n");
       errors.forEach(error -> sb.append("- ").append(error.getMessage()).append("\n"));
       return new ValidationResult(false, sb.toString().trim());
