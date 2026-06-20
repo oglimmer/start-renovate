@@ -8,7 +8,7 @@ This Helm chart deploys the Start Renovate application (Renovate configuration g
 - Helm 3.0+
 - Sealed Secrets controller installed in your cluster
 - Container registry with your images
-- OpenAI API key
+- DeepSeek API key
 - A reachable PostgreSQL database (for the dashboard's per-user repo selection)
 - A GitHub OAuth App (for the dashboard login) with callback URL
   `https://renovate.oglimmer.com/api/login/oauth2/code/github`
@@ -49,31 +49,31 @@ The backend allows cross-origin requests only from the production origin
 
 ## Installation
 
-### 1. Create the Sealed Secret for OpenAI API Key
+### 1. Create the Sealed Secret for DeepSeek API Key
 
-First, you need to create a sealed secret for your OpenAI API key:
+First, you need to create a sealed secret for your DeepSeek API key:
 
 ```bash
 # Create a temporary secret file
-cat <<EOF > /tmp/openai-secret.yaml
+cat <<EOF > /tmp/deepseek-secret.yaml
 apiVersion: v1
 kind: Secret
 metadata:
-  name: start-renovate-openai-secret
+  name: start-renovate-deepseek-secret
   namespace: default
 type: Opaque
 stringData:
-  openai.api-key: "sk-your-actual-openai-api-key-here"
+  deepseek.api-key: "sk-your-actual-deepseek-api-key-here"
 EOF
 
 # Seal the secret (kubeseal must be configured to talk to your cluster)
-kubeseal --format yaml < /tmp/openai-secret.yaml > helm/sealed-openai-secret.yaml
+kubeseal --format yaml < /tmp/deepseek-secret.yaml > helm/sealed-deepseek-secret.yaml
 
 # Clean up the temporary file
-rm /tmp/openai-secret.yaml
+rm /tmp/deepseek-secret.yaml
 
 # Apply the sealed secret to your cluster
-kubectl apply -f helm/sealed-openai-secret.yaml
+kubectl apply -f helm/sealed-deepseek-secret.yaml
 ```
 
 ### 1a. Provision the Postgres role and database (dashboard)
@@ -193,7 +193,7 @@ The following table lists the configurable parameters:
 - Runs as non-root user (UID 1000)
 - Drops all capabilities
 - Uses read-only root filesystem where possible
-- OpenAI API key stored as sealed secret
+- DeepSeek API key stored as sealed secret
 
 ## Monitoring
 
@@ -219,8 +219,8 @@ kubectl logs -l app.kubernetes.io/component=frontend
 
 ### Check sealed secret
 ```bash
-kubectl get sealedsecret start-renovate-openai-secret
-kubectl get secret start-renovate-openai-secret
+kubectl get sealedsecret start-renovate-deepseek-secret
+kubectl get secret start-renovate-deepseek-secret
 ```
 
 ### Port forward for local testing

@@ -5,10 +5,10 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "openai")
+@ConfigurationProperties(prefix = "deepseek")
 @Getter
 @Setter
-public class OpenAIProperties {
+public class DeepSeekProperties {
 
   private String apiKey;
   private String baseUrl;

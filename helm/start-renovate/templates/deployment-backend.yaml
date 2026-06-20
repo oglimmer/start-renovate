@@ -36,11 +36,11 @@ spec:
           containerPort: 8080
           protocol: TCP
         env:
-        - name: OPENAI_API_KEY
+        - name: DEEPSEEK_API_KEY
           valueFrom:
             secretKeyRef:
-              name: start-renovate-openai-secret
-              key: openai.api-key
+              name: start-renovate-deepseek-secret
+              key: deepseek.api-key
         # GitHub OAuth + Postgres for the authenticated dashboard. All five values live in the
         # start-renovate-app-secret sealed secret (see helm/sealed-app-secret.yaml.template).
         - name: GITHUB_CLIENT_ID

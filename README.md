@@ -2,7 +2,7 @@
 
 A full‑stack web application that helps you create a clear, best‑practice `renovate.json` without reading the entire Renovate docs. Pick your preferences, preview the JSON live, get AI‑powered feedback on your configuration, and download the file for your repo.
 
-**Why**: Renovate is powerful but configuration can feel overwhelming. This tool gives teams a sensible starting point with opinionated defaults, explainers for common options, and intelligent validation powered by OpenAI.
+**Why**: Renovate is powerful but configuration can feel overwhelming. This tool gives teams a sensible starting point with opinionated defaults, explainers for common options, and intelligent validation powered by DeepSeek.
 
 ## What It Does
 
@@ -16,7 +16,7 @@ A full‑stack web application that helps you create a clear, best‑practice `r
 
 ## Architecture
 
-- **Backend**: Spring Boot 4.0 (Java 21) REST API with OpenAI integration for configuration feedback
+- **Backend**: Spring Boot 4.0 (Java 21) REST API with DeepSeek integration for configuration feedback
 - **Frontend**: Nuxt.js web application for interactive configuration building
 - **Deployment**: Helm chart for Kubernetes deployment with ingress, sealed secrets, and health monitoring
 
@@ -48,8 +48,8 @@ npm run dev
 ```bash
 cd backend
 
-# Configure OpenAI API key
-export OPENAI_API_KEY="sk-your-openai-api-key-here"
+# Configure DeepSeek API key
+export DEEPSEEK_API_KEY="sk-your-deepseek-api-key-here"
 
 # Run the backend
 ./mvnw spring-boot:run
@@ -74,7 +74,7 @@ The frontend will start on `http://localhost:3000` and connect to the backend at
 Deploy to your Kubernetes cluster using Helm:
 
 ```bash
-# Create and apply sealed secret for OpenAI API key
+# Create and apply sealed secret for DeepSeek API key
 # (See helm/README.md for detailed instructions)
 
 # Install the Helm chart
@@ -127,17 +127,17 @@ All selections are reflected in the live preview and exported JSON.
 ### For Local Development
 - **Frontend**: Node.js 18+ and npm
 - **Backend**: Java 21+ and Maven
-- **AI Feedback**: OpenAI API key (optional, only needed for feedback feature)
+- **AI Feedback**: DeepSeek API key (optional, only needed for feedback feature)
 
 ### For Kubernetes Deployment
 - Kubernetes 1.19+
 - Helm 3.0+
-- Sealed Secrets controller (for storing OpenAI API key)
+- Sealed Secrets controller (for storing DeepSeek API key)
 - Container registry access
 
 ## Technical Stack
 
-- **Backend**: Spring Boot 4.0, Java 21, Spring WebFlux, OpenAI Java SDK
+- **Backend**: Spring Boot 4.0, Java 21, Spring WebFlux
 - **Frontend**: Nuxt.js, Vue.js
 - **Deployment**: Kubernetes, Helm, Sealed Secrets
 - **Build Tools**: Maven (backend), npm (frontend)

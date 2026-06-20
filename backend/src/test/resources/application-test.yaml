@@ -21,10 +21,10 @@ spring:
             scope: "repo,read:org"
         provider:
           github: {}
-openai:
-  base-url: "https://api.openai.com/v1"
-  api-key: "test-openai-key"
-  model: "gpt-5-mini"
+deepseek:
+  base-url: "https://api.deepseek.com"
+  api-key: "test-deepseek-key"
+  model: "deepseek-chat"
   maxOutputTokens: 800
 github:
   api-base-url: "https://api.github.com"

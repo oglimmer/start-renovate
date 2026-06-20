@@ -42,7 +42,7 @@
             <p class="text-gray-700 mb-4">
               The API has a single job: <strong>analyse a Renovate configuration and tell you how to make it better.</strong>
               Under the hood your config is first validated against the official Renovate JSON schema, then handed to an
-              OpenAI model that returns structured, actionable feedback. It's the right tool when you want to lint and
+              DeepSeek model that returns structured, actionable feedback. It's the right tool when you want to lint and
               improve <code class="bg-gray-100 px-1 rounded">renovate.json</code> files programmatically — in CI, a bot, or
               your own developer tooling.
             </p>

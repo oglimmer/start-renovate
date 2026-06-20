@@ -32,10 +32,10 @@ server:
   servlet:
     context-path: "/api"
   forward-headers-strategy: "framework"
-openai:
-  base-url: "https://api.openai.com/v1"
-  api-key: "${OPENAI_API_KEY}"
-  model: "gpt-5-mini"
+deepseek:
+  base-url: "https://api.deepseek.com"
+  api-key: "${DEEPSEEK_API_KEY}"
+  model: "deepseek-chat"
   maxOutputTokens: 800
 github:
   api-base-url: "https://api.github.com"

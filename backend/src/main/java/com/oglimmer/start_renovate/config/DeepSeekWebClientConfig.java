@@ -11,11 +11,11 @@ import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
-@EnableConfigurationProperties(OpenAIProperties.class)
-public class OpenAIWebClientConfig {
+@EnableConfigurationProperties(DeepSeekProperties.class)
+public class DeepSeekWebClientConfig {
 
   @Bean
-  public WebClient openAiWebClient(OpenAIProperties props) {
+  public WebClient deepSeekWebClient(DeepSeekProperties props) {
     int maxInMemorySizeBytes = 2 * 1024 * 1024;
 
     ExchangeStrategies strategies =
