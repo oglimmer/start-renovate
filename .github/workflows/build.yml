@@ -1,18 +1,14 @@
 name: Build & push images
 
-# Builds the frontend + backend Docker images and pushes them to
-# registry.oglimmer.com, using the repo's own oglimmer.sh script. Runs on the
-# in-cluster self-hosted ARC runner (arm64, Docker-in-Docker).
-# Deployment rollout is left to the cluster (keel), so we pass --no-restart.
+# Builds the frontend and/or backend Docker images and pushes them to
+# registry.oglimmer.com via the repo's oglimmer.sh script, on the in-cluster
+# self-hosted ARC runner (arm64, Docker-in-Docker). Only the components whose
+# files changed are built (mirrors ci.yml). Rollout is left to the cluster
+# (keel), so we pass --no-restart.
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'oglimmer.sh'
-      - '.github/workflows/build.yml'
   workflow_dispatch:
 
 # One build per ref; cancel superseded pushes.
@@ -24,7 +20,30 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  # Detect which parts of the repo changed so we only build the relevant images.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'oglimmer.sh'
+              - '.github/workflows/build.yml'
+            frontend:
+              - 'frontend/**'
+              - 'oglimmer.sh'
+              - '.github/workflows/build.yml'
+
+  backend:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: arc-start-renovate   # in-cluster ARC runner scale set
     steps:
       - uses: actions/checkout@v4
@@ -37,12 +56,32 @@ jobs:
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
       # oglimmer.sh's prerequisite check requires kubectl on PATH even with
-      # --no-restart; install it (the runner image has docker via dind only).
+      # --no-restart; the runner image has docker (via dind) only.
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
 
       # --platform auto -> plain `docker build` + `docker push` via the dind
-      # daemon (native arm64 here). Avoids the buildx docker-container driver,
-      # whose push session times out against the registry's public ingress.
-      - name: Build & push (frontend + backend)
-        run: ./oglimmer.sh build --all --no-restart --platform auto --verbose
+      # daemon (native arm64). Avoids the buildx docker-container driver, whose
+      # push session times out against the registry's public ingress.
+      - name: Build & push backend
+        run: ./oglimmer.sh build -b --no-restart --platform auto --verbose
+
+  frontend:
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
+    runs-on: arc-start-renovate
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to registry.oglimmer.com
+        uses: docker/login-action@v3
+        with:
+          registry: registry.oglimmer.com
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Build & push frontend
+        run: ./oglimmer.sh build -f --no-restart --platform auto --verbose
