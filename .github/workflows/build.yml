@@ -55,11 +55,6 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      # oglimmer.sh's prerequisite check requires kubectl on PATH even with
-      # --no-restart; the runner image has docker (via dind) only.
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
-
       # --platform auto -> plain `docker build` + `docker push` via the dind
       # daemon (native arm64). Avoids the buildx docker-container driver, whose
       # push session times out against the registry's public ingress.
@@ -79,9 +74,6 @@ jobs:
           registry: registry.oglimmer.com
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
-
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
 
       - name: Build & push frontend
         run: ./oglimmer.sh build -f --no-restart --platform auto --verbose

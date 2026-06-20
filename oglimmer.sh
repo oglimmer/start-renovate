@@ -283,8 +283,15 @@ parse_args() {
 
 # Check if required tools are available
 check_prerequisites() {
-    local tools=("docker" "kubectl")
+    local tools=("docker")
     local missing_deps=()
+
+    # kubectl is only used to restart deployments. Skip the check when we won't
+    # restart (e.g. --no-restart, or --no-push which forces RESTART=false), so
+    # build-only environments like CI don't need kubectl installed.
+    if [[ "$RESTART" == true ]]; then
+        tools+=("kubectl")
+    fi
 
     # Add additional tools for release mode
     if [[ "$RELEASE_MODE" == true ]]; then
