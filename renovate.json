@@ -36,6 +36,38 @@
         "major"
       ],
       "dependencyDashboardApproval": true
+    },
+    {
+      "matchManagers": [
+        "npm"
+      ],
+      "groupName": "npm dependencies"
+    },
+    {
+      "matchManagers": [
+        "dockerfile",
+        "docker-compose"
+      ],
+      "groupName": "Docker dependencies"
+    },
+    {
+      "matchManagers": [
+        "maven"
+      ],
+      "groupName": "Maven dependencies"
+    },
+    {
+      "matchManagers": [
+        "helmv3",
+        "helmfile"
+      ],
+      "groupName": "Helm dependencies"
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "GitHub Actions"
     }
   ],
   "minimumReleaseAge": "7 days",
