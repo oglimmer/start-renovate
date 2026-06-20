@@ -104,6 +104,10 @@
             </label>
           </div>
 
+          <div v-if="openError" class="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
+            {{ openError }}
+          </div>
+
           <div v-if="dashboardLoading" class="text-sm text-gray-400 py-10 text-center">Loading configurations…</div>
 
           <div v-else-if="enabledEntries.length === 0" class="text-sm text-gray-400 py-10 text-center">
@@ -133,6 +137,14 @@
                       <span v-if="!entry.hasRenovate" class="text-[10px] font-normal text-amber-500">no config</span>
                       <span v-else-if="entry.error" class="text-[10px] font-normal text-red-500" :title="entry.error">parse error</span>
                       <span v-else class="text-[10px] font-normal text-gray-400">{{ entry.configFilePath }}</span>
+                      <button
+                        v-if="entry.hasRenovate && !entry.error"
+                        :disabled="openingRepo === entry.fullName"
+                        class="mt-1 text-[10px] font-normal text-indigo-600 hover:text-indigo-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                        @click="openInEditor(entry.fullName)"
+                      >
+                        {{ openingRepo === entry.fullName ? 'Opening…' : 'Open in editor →' }}
+                      </button>
                     </div>
                   </th>
                 </tr>
@@ -192,6 +204,9 @@ import type { CellState, DashboardResponse, RepoDashboardEntry, RepoSummary } fr
 const { request } = useApi()
 const { user, loading, providers, fetchMe, fetchProviders, login, logout } = useAuth()
 
+// sessionStorage key the editor (index.vue) reads to pick up a config opened from here.
+const EDITOR_IMPORT_KEY = 'renovate:editor-import'
+
 function hasProvider(id: string): boolean {
   return providers.value.some(p => p.id === id)
 }
@@ -204,6 +219,10 @@ const busyRepos = ref<Set<string>>(new Set())
 const dashboard = ref<DashboardResponse | null>(null)
 const dashboardLoading = ref(false)
 const differencesOnly = ref(false)
+
+// fullName currently being fetched for "Open in editor"; empty when idle.
+const openingRepo = ref('')
+const openError = ref('')
 
 const enabledEntries = computed<RepoDashboardEntry[]>(() => dashboard.value?.repos ?? [])
 const enabledCount = computed(() => repos.value.filter(r => r.enabled).length)
@@ -313,6 +332,34 @@ async function toggleRepo(repo: RepoSummary): Promise<void> {
     const updated = new Set(busyRepos.value)
     updated.delete(repo.fullName)
     busyRepos.value = updated
+  }
+}
+
+// Fetch a repo's renovate.json (authenticated, so private + GitLab work) and hand it to the editor.
+async function openInEditor(fullName: string): Promise<void> {
+  openError.value = ''
+  openingRepo.value = fullName
+  try {
+    // fullName can contain multiple slashes (GitLab subgroups); the backend captures it as a
+    // trailing wildcard path segment, matching the enable/disable endpoints.
+    const res = await request(`/repos/config/${fullName}`)
+    if (!res.ok) {
+      openError.value =
+        res.status === 404
+          ? `No Renovate config found for ${fullName}.`
+          : `Could not load the configuration for ${fullName} (${res.status}).`
+      return
+    }
+    const data = (await res.json()) as { fullName: string; configFilePath: string; json: string }
+    sessionStorage.setItem(
+      EDITOR_IMPORT_KEY,
+      JSON.stringify({ fullName: data.fullName, json: data.json }),
+    )
+    await navigateTo('/')
+  } catch {
+    openError.value = `Could not load the configuration for ${fullName}.`
+  } finally {
+    openingRepo.value = ''
   }
 }
 

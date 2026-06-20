@@ -1,8 +1,12 @@
 /* Copyright (c) 2025 by oglimmer.com / Oliver Zimpasser. All rights reserved. */
 package com.oglimmer.start_renovate.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oglimmer.start_renovate.dto.DashboardResponse;
 import com.oglimmer.start_renovate.dto.MeResponse;
+import com.oglimmer.start_renovate.dto.RepoConfigResponse;
 import com.oglimmer.start_renovate.dto.RepoDashboardEntry;
 import com.oglimmer.start_renovate.dto.RepoSummary;
 import com.oglimmer.start_renovate.entity.EnabledRepo;
@@ -27,6 +31,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -48,6 +53,7 @@ public class DashboardController {
   private final AppUserService appUserService;
   private final RenovateConfigAnalyzer analyzer;
   private final EnabledRepoRepository enabledRepoRepository;
+  private final ObjectMapper objectMapper;
 
   @GetMapping("/me")
   public MeResponse me(OAuth2AuthenticationToken authentication) {
@@ -115,6 +121,40 @@ public class DashboardController {
             fullName -> dashboardEntry(provider, token, fullName), DASHBOARD_CONCURRENCY)
         .collectList()
         .map(DashboardResponse::new);
+  }
+
+  /**
+   * Returns a single repo's Renovate config as pretty-printed JSON so the SPA can load it into the
+   * generator's editor. Uses the user's OAuth token, so unlike the public URL import this works for
+   * private repos and for GitLab (whose raw endpoint blocks browser CORS).
+   */
+  @GetMapping("/repos/config/{*fullName}")
+  public Mono<RepoConfigResponse> repoConfig(
+      OAuth2AuthenticationToken authentication, @PathVariable String fullName) {
+    String repo = normalizeFullName(fullName);
+    String token = tokenService.currentAccessToken(authentication);
+    return provider(authentication)
+        .fetchRenovateConfig(token, repo)
+        .switchIfEmpty(
+            Mono.error(
+                new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "No Renovate config found for " + repo)))
+        .map(
+            result -> {
+              if (result.error() != null) {
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, result.error());
+              }
+              return new RepoConfigResponse(repo, result.path(), writeJson(result.config()));
+            });
+  }
+
+  private String writeJson(JsonNode node) {
+    try {
+      return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(node);
+    } catch (JsonProcessingException e) {
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR, "Could not serialize Renovate config");
+    }
   }
 
   private Mono<RepoDashboardEntry> dashboardEntry(

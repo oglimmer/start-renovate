@@ -60,6 +60,13 @@ class DashboardControllerTest {
   }
 
   @Test
+  void repoConfigRequiresAuthentication() throws Exception {
+    setupMvc();
+    mvc.perform(get("/repos/config/octo/hello").header("X-Requested-With", "XMLHttpRequest"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
   void putWithoutCsrfIsForbidden() throws Exception {
     setupMvc();
     mvc.perform(put("/repos/enabled/octo/hello").with(oauth2Login().oauth2User(ghUser(123))))

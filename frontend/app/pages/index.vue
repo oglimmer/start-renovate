@@ -68,6 +68,18 @@
             </div>
           </div>
 
+          <!-- Notice shown after loading a repo's config from the dashboard -->
+          <div v-if="importedFromRepo" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start justify-between gap-3">
+            <p class="text-sm text-green-700">
+              Loaded the Renovate configuration from <span class="font-medium">{{ importedFromRepo }}</span> into the editor.
+            </p>
+            <button class="shrink-0 text-green-600 hover:text-green-800" aria-label="Dismiss" @click="importedFromRepo = ''">
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-2xl font-semibold text-gray-900">Configuration Options</h2>
             <button
@@ -1496,7 +1508,7 @@
               :class="importTab === 'url' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'"
               @click="importTab = 'url'; importError = ''"
             >
-              Repository URL
+              GitHub URL
             </button>
           </div>
 
@@ -1515,7 +1527,7 @@
             </button>
           </div>
 
-          <!-- Repository URL Tab -->
+          <!-- GitHub URL Tab -->
           <div v-if="importTab === 'url'">
             <input
               v-model="importUrl"
@@ -1524,7 +1536,9 @@
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
             >
             <p class="mt-2 text-xs text-gray-500">
-              Supports GitHub and GitLab URLs in various formats: direct file links (blob/raw), or repository root URLs (will look for renovate.json on the default branch).
+              Supports public GitHub URLs: direct file links (blob/raw), or a repository root URL (looks for renovate.json on the default branch).
+              For GitLab or private repositories, use the
+              <NuxtLink to="/dashboard" class="text-indigo-600 hover:text-indigo-800 underline">Dashboard</NuxtLink>.
             </p>
             <button
               :disabled="isImporting"
@@ -1546,8 +1560,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { generateRenovateConfigJson, defaultRenovateConfig, type RenovateConfig } from '../lib/generateRenovateConfig'
+
+// sessionStorage key the dashboard uses to hand a repo's renovate.json to the editor.
+const EDITOR_IMPORT_KEY = 'renovate:editor-import'
 
 interface Issue {
   severity: string
@@ -1578,6 +1595,8 @@ const importJsonText = ref('')
 const importUrl = ref('')
 const importError = ref('')
 const isImporting = ref(false)
+// Repo name shown in the "loaded from dashboard" notice; empty hides it.
+const importedFromRepo = ref('')
 
 const timezones = [
   { value: 'UTC', label: 'UTC - Coordinated Universal Time' },
@@ -1843,13 +1862,11 @@ const parseRenovateJson = (jsonString: string): Partial<RenovateConfig> => {
   return result
 }
 
-// Convert a repository URL (GitHub or GitLab) to its raw content URL
-const convertToRawUrl = (url: string): string => {
-  // GitLab URLs use the `/-/` path marker; route them to the GitLab converter.
-  if (url.includes('/-/') || url.includes('gitlab')) {
-    return convertToRawGitLabUrl(url)
-  }
-  return convertToRawGitHubUrl(url)
+// Heuristic: does this look like a GitLab URL? GitLab project paths use the `/-/` marker, and
+// self-hosted instances usually carry "gitlab" in the host. URL import only supports GitHub
+// (raw.githubusercontent.com is CORS-open); GitLab is handled in the authenticated dashboard.
+const looksLikeGitLabUrl = (url: string): boolean => {
+  return url.includes('/-/') || url.toLowerCase().includes('gitlab')
 }
 
 // Convert GitHub URL to raw content URL
@@ -1883,32 +1900,6 @@ const convertToRawGitHubUrl = (url: string): string => {
   return url
 }
 
-// Convert GitLab URL to raw content URL (supports gitlab.com, subgroups, and self-hosted instances)
-const convertToRawGitLabUrl = (url: string): string => {
-  // Handle various GitLab URL formats
-  // https://gitlab.com/group/project/-/blob/branch/path/to/renovate.json
-  // https://gitlab.com/group/subgroup/project/-/raw/branch/path/to/renovate.json
-  // https://gitlab.com/group/project (repo root)
-
-  // Already a raw URL
-  if (url.includes('/-/raw/')) {
-    return url
-  }
-
-  // Convert blob URL to raw URL
-  if (url.includes('/-/blob/')) {
-    return url.replace('/-/blob/', '/-/raw/')
-  }
-
-  // If it's a repo root URL (no `/-/` segment), try renovate.json on the default branch
-  if (!url.includes('/-/')) {
-    const base = url.replace(/\/$/, '')
-    return `${base}/-/raw/main/renovate.json`
-  }
-
-  return url
-}
-
 // Import from pasted JSON
 const importFromJson = () => {
   importError.value = ''
@@ -1928,19 +1919,28 @@ const importFromJson = () => {
   }
 }
 
-// Import from a GitHub or GitLab URL
+// Import from a GitHub URL (client-side, public repos only). GitLab is intentionally not handled
+// here: its raw endpoint blocks browser CORS, and private/GitLab configs need the user's token —
+// both are solved by the dashboard's "Open in editor", so GitLab URLs are pointed there.
 const importFromUrl = async () => {
   importError.value = ''
 
-  if (!importUrl.value.trim()) {
-    importError.value = 'Please enter a GitHub or GitLab URL'
+  const trimmed = importUrl.value.trim()
+  if (!trimmed) {
+    importError.value = 'Please enter a GitHub URL'
+    return
+  }
+
+  if (looksLikeGitLabUrl(trimmed)) {
+    importError.value =
+      'GitLab import is not available here. Open the Dashboard, pick the repository, and use "Open in editor" to load its renovate.json.'
     return
   }
 
   isImporting.value = true
 
   try {
-    const rawUrl = convertToRawUrl(importUrl.value.trim())
+    const rawUrl = convertToRawGitHubUrl(trimmed)
     const response = await fetch(rawUrl)
 
     if (!response.ok) {
@@ -2046,6 +2046,24 @@ const getFeedback = async () => {
     isLoadingFeedback.value = false
   }
 }
+
+// On load, pick up a config handed over from the dashboard's "Open in editor" and apply it. The
+// handoff goes through sessionStorage (one-shot) rather than the URL so large configs don't end up
+// in the address bar or browser history.
+onMounted(() => {
+  if (typeof window === 'undefined') return
+  const raw = sessionStorage.getItem(EDITOR_IMPORT_KEY)
+  if (!raw) return
+  sessionStorage.removeItem(EDITOR_IMPORT_KEY)
+  try {
+    const payload = JSON.parse(raw) as { fullName?: string; json?: string }
+    if (!payload.json) return
+    applyImportedConfig(parseRenovateJson(payload.json))
+    importedFromRepo.value = payload.fullName || 'the selected repository'
+  } catch (e) {
+    console.error('Failed to load imported config from dashboard:', e)
+  }
+})
 </script>
 
 <style scoped>
