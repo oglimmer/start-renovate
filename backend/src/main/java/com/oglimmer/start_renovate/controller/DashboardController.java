@@ -7,18 +7,20 @@ import com.oglimmer.start_renovate.dto.RepoDashboardEntry;
 import com.oglimmer.start_renovate.dto.RepoSummary;
 import com.oglimmer.start_renovate.entity.EnabledRepo;
 import com.oglimmer.start_renovate.repository.EnabledRepoRepository;
-import com.oglimmer.start_renovate.service.GitHubApiService;
-import com.oglimmer.start_renovate.service.GitHubApiService.RenovateConfigResult;
-import com.oglimmer.start_renovate.service.GitHubTokenService;
+import com.oglimmer.start_renovate.security.ProviderUser;
+import com.oglimmer.start_renovate.service.AccessTokenService;
+import com.oglimmer.start_renovate.service.AppUserService;
 import com.oglimmer.start_renovate.service.RenovateConfigAnalyzer;
+import com.oglimmer.start_renovate.service.repo.RenovateConfigResult;
+import com.oglimmer.start_renovate.service.repo.RepoProvider;
+import com.oglimmer.start_renovate.service.repo.RepoProviderRegistry;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,38 +31,41 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * Endpoints powering the GitHub dashboard. All require an authenticated session (enforced by {@code
- * SecurityConfig}). The GitHub token and user id are resolved on the servlet thread and passed into
- * the reactive fan-out, which runs on threads without a security context.
+ * Endpoints powering the dashboard. All require an authenticated session (enforced by {@code
+ * SecurityConfig}). The provider is selected from the OAuth registration id on the authentication;
+ * the access token and local user id are resolved on the servlet thread and passed into the reactive
+ * fan-out, which runs on threads without a security context.
  */
 @RestController
 @RequiredArgsConstructor
 public class DashboardController {
 
-  /** Bound concurrency of the per-repo GitHub fetches to stay well within rate limits. */
+  /** Bound concurrency of the per-repo provider fetches to stay well within rate limits. */
   private static final int DASHBOARD_CONCURRENCY = 6;
 
-  private final GitHubTokenService tokenService;
-  private final GitHubApiService gitHubApiService;
+  private final AccessTokenService tokenService;
+  private final RepoProviderRegistry providerRegistry;
+  private final AppUserService appUserService;
   private final RenovateConfigAnalyzer analyzer;
   private final EnabledRepoRepository enabledRepoRepository;
 
   @GetMapping("/me")
-  public MeResponse me(@AuthenticationPrincipal OAuth2User principal) {
-    Object rawId = principal.getAttribute("id");
-    Long id = rawId instanceof Number number ? number.longValue() : null;
+  public MeResponse me(OAuth2AuthenticationToken authentication) {
+    ProviderUser user = providerUser(authentication);
     return new MeResponse(
-        id,
-        principal.getAttribute("login"),
-        principal.getAttribute("name"),
-        principal.getAttribute("avatar_url"));
+        user.providerUserId(),
+        user.login(),
+        user.name(),
+        user.avatarUrl(),
+        user.provider(),
+        provider(authentication).webBaseUrl());
   }
 
   @GetMapping("/repos")
-  public Mono<List<RepoSummary>> repos(@AuthenticationPrincipal OAuth2User principal) {
-    String token = tokenService.currentAccessToken();
-    Set<String> enabled = enabledFullNames(currentUserId(principal));
-    return gitHubApiService
+  public Mono<List<RepoSummary>> repos(OAuth2AuthenticationToken authentication) {
+    String token = tokenService.currentAccessToken(authentication);
+    Set<String> enabled = enabledFullNames(currentUserId(authentication));
+    return provider(authentication)
         .listAllRepos(token)
         .map(
             repos ->
@@ -78,46 +83,45 @@ public class DashboardController {
                     .toList());
   }
 
-  @PutMapping("/repos/{owner}/{name}/enabled")
+  @PutMapping("/repos/enabled/{*fullName}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void enableRepo(
-      @AuthenticationPrincipal OAuth2User principal,
-      @PathVariable String owner,
-      @PathVariable String name) {
-    Long userId = currentUserId(principal);
-    String fullName = owner + "/" + name;
-    if (!enabledRepoRepository.existsByUserIdAndRepoFullName(userId, fullName)) {
-      enabledRepoRepository.save(new EnabledRepo(userId, fullName));
+      OAuth2AuthenticationToken authentication, @PathVariable String fullName) {
+    String repo = normalizeFullName(fullName);
+    Long userId = currentUserId(authentication);
+    if (!enabledRepoRepository.existsByUserIdAndRepoFullName(userId, repo)) {
+      enabledRepoRepository.save(new EnabledRepo(userId, repo));
     }
   }
 
-  @DeleteMapping("/repos/{owner}/{name}/enabled")
+  @DeleteMapping("/repos/enabled/{*fullName}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void disableRepo(
-      @AuthenticationPrincipal OAuth2User principal,
-      @PathVariable String owner,
-      @PathVariable String name) {
+      OAuth2AuthenticationToken authentication, @PathVariable String fullName) {
     enabledRepoRepository.deleteByUserIdAndRepoFullName(
-        currentUserId(principal), owner + "/" + name);
+        currentUserId(authentication), normalizeFullName(fullName));
   }
 
   @GetMapping("/dashboard")
-  public Mono<DashboardResponse> dashboard(@AuthenticationPrincipal OAuth2User principal) {
-    String token = tokenService.currentAccessToken();
+  public Mono<DashboardResponse> dashboard(OAuth2AuthenticationToken authentication) {
+    RepoProvider provider = provider(authentication);
+    String token = tokenService.currentAccessToken(authentication);
     List<String> enabled =
-        enabledRepoRepository.findByUserId(currentUserId(principal)).stream()
+        enabledRepoRepository.findByUserId(currentUserId(authentication)).stream()
             .map(EnabledRepo::getRepoFullName)
             .sorted()
             .toList();
 
     return Flux.fromIterable(enabled)
-        .flatMapSequential(fullName -> dashboardEntry(token, fullName), DASHBOARD_CONCURRENCY)
+        .flatMapSequential(
+            fullName -> dashboardEntry(provider, token, fullName), DASHBOARD_CONCURRENCY)
         .collectList()
         .map(DashboardResponse::new);
   }
 
-  private Mono<RepoDashboardEntry> dashboardEntry(String token, String fullName) {
-    return gitHubApiService
+  private Mono<RepoDashboardEntry> dashboardEntry(
+      RepoProvider provider, String token, String fullName) {
+    return provider
         .fetchRenovateConfig(token, fullName)
         .map(result -> toEntry(fullName, result))
         .defaultIfEmpty(new RepoDashboardEntry(fullName, false, null, Map.of(), null))
@@ -139,9 +143,22 @@ public class DashboardController {
         .collect(Collectors.toSet());
   }
 
-  private Long currentUserId(OAuth2User principal) {
-    // GitHub's provider defaults use the numeric "id" as the principal name.
-    return Long.valueOf(principal.getName());
+  private RepoProvider provider(OAuth2AuthenticationToken authentication) {
+    return providerRegistry.get(authentication.getAuthorizedClientRegistrationId());
+  }
+
+  private ProviderUser providerUser(OAuth2AuthenticationToken authentication) {
+    return ProviderUser.from(
+        authentication.getAuthorizedClientRegistrationId(), authentication.getPrincipal());
+  }
+
+  private Long currentUserId(OAuth2AuthenticationToken authentication) {
+    return appUserService.resolveId(providerUser(authentication));
+  }
+
+  /** The {@code {*fullName}} capture includes a leading slash; strip it to get "owner/repo". */
+  private static String normalizeFullName(String captured) {
+    return captured.startsWith("/") ? captured.substring(1) : captured;
   }
 
   private String describe(Throwable ex) {

@@ -28,19 +28,32 @@
 
       <!-- Logged out -->
       <div v-else-if="!user" class="max-w-md mx-auto bg-white shadow-xl rounded-lg p-8 text-center">
-        <h2 class="text-xl font-semibold text-gray-900 mb-2">Connect GitHub</h2>
+        <h2 class="text-xl font-semibold text-gray-900 mb-2">Connect a repository host</h2>
         <p class="text-gray-600 text-sm mb-6">
-          Sign in with GitHub to choose repositories and compare their Renovate configuration.
+          Sign in to choose repositories and compare their Renovate configuration.
         </p>
-        <button
-          class="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-          @click="login"
-        >
-          <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.48 2 2 6.58 2 12.26c0 4.5 2.87 8.32 6.84 9.67.5.1.68-.22.68-.49l-.01-1.7c-2.78.62-3.37-1.37-3.37-1.37-.46-1.18-1.11-1.5-1.11-1.5-.91-.63.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.94.86.09-.67.35-1.12.63-1.38-2.22-.26-4.55-1.14-4.55-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.05A9.36 9.36 0 0 1 12 6.84c.85 0 1.71.12 2.51.34 1.91-1.33 2.75-1.05 2.75-1.05.55 1.4.2 2.44.1 2.7.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9l-.01 2.82c0 .27.18.6.69.49A10.02 10.02 0 0 0 22 12.26C22 6.58 17.52 2 12 2Z" />
-          </svg>
-          Login with GitHub
-        </button>
+        <div class="flex flex-col gap-3">
+          <button
+            v-if="hasProvider('github')"
+            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+            @click="login('github')"
+          >
+            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.48 2 2 6.58 2 12.26c0 4.5 2.87 8.32 6.84 9.67.5.1.68-.22.68-.49l-.01-1.7c-2.78.62-3.37-1.37-3.37-1.37-.46-1.18-1.11-1.5-1.11-1.5-.91-.63.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.94.86.09-.67.35-1.12.63-1.38-2.22-.26-4.55-1.14-4.55-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.05A9.36 9.36 0 0 1 12 6.84c.85 0 1.71.12 2.51.34 1.91-1.33 2.75-1.05 2.75-1.05.55 1.4.2 2.44.1 2.7.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9l-.01 2.82c0 .27.18.6.69.49A10.02 10.02 0 0 0 22 12.26C22 6.58 17.52 2 12 2Z" />
+            </svg>
+            Login with GitHub
+          </button>
+          <button
+            v-if="hasProvider('gitlab')"
+            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#fc6d26] text-white rounded-lg hover:bg-[#e24329] transition-colors"
+            @click="login('gitlab')"
+          >
+            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m23.6 9.6-.03-.08-3.26-8.5a.85.85 0 0 0-.84-.54.85.85 0 0 0-.8.62L16.5 7.4H7.5L5.33 1.12a.85.85 0 0 0-.8-.62.85.85 0 0 0-.84.54L.43 9.52l-.03.08a6.05 6.05 0 0 0 2.01 6.99l.01.01.03.02 4.97 3.72 2.46 1.86 1.5 1.13a1 1 0 0 0 1.21 0l1.5-1.13 2.46-1.86 5-3.74.01-.01a6.05 6.05 0 0 0 2.01-6.99Z" />
+            </svg>
+            Login with GitLab
+          </button>
+        </div>
       </div>
 
       <!-- Authenticated -->
@@ -111,7 +124,7 @@
                   >
                     <div class="flex flex-col">
                       <a
-                        :href="`https://github.com/${entry.fullName}`"
+                        :href="repoUrl(entry.fullName)"
                         target="_blank"
                         rel="noopener noreferrer"
                         :title="entry.fullName"
@@ -177,7 +190,11 @@ import { dashboardOptionGroups } from '~/lib/dashboardOptions'
 import type { CellState, DashboardResponse, RepoDashboardEntry, RepoSummary } from '~/lib/dashboardOptions'
 
 const { request } = useApi()
-const { user, loading, fetchMe, login, logout } = useAuth()
+const { user, loading, providers, fetchMe, fetchProviders, login, logout } = useAuth()
+
+function hasProvider(id: string): boolean {
+  return providers.value.some(p => p.id === id)
+}
 
 const repos = ref<RepoSummary[]>([])
 const reposLoading = ref(false)
@@ -212,8 +229,14 @@ const visibleGroups = computed(() => {
 })
 
 function shortName(fullName: string): string {
+  // GitLab projects can be nested in subgroups (group/sub/repo); the repo slug is the last segment.
   const parts = fullName.split('/')
-  return parts.length > 1 ? parts[1]! : fullName
+  return parts.length > 1 ? parts[parts.length - 1]! : fullName
+}
+
+function repoUrl(fullName: string): string {
+  const base = user.value?.webBaseUrl ?? 'https://github.com'
+  return `${base}/${fullName}`
 }
 
 function rowDiffers(id: string): boolean {
@@ -276,7 +299,9 @@ async function loadDashboard(): Promise<void> {
 
 async function toggleRepo(repo: RepoSummary): Promise<void> {
   const next = !repo.enabled
-  const segment = `/repos/${repo.fullName}/enabled`
+  // fullName can contain multiple slashes (GitLab subgroups); the backend captures it as a
+  // trailing wildcard path segment.
+  const segment = `/repos/enabled/${repo.fullName}`
   busyRepos.value = new Set(busyRepos.value).add(repo.fullName)
   try {
     const res = await request(segment, { method: next ? 'PUT' : 'DELETE' })
@@ -299,6 +324,9 @@ onMounted(async () => {
   await fetchMe()
   if (user.value) {
     await Promise.all([loadRepos(), loadDashboard()])
+  } else {
+    // Logged out: find out which login buttons to offer.
+    await fetchProviders()
   }
 })
 </script>

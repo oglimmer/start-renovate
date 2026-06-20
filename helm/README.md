@@ -12,14 +12,16 @@ This Helm chart deploys the Start Renovate application (Renovate configuration g
 - A reachable PostgreSQL database (for the dashboard's per-user repo selection)
 - A GitHub OAuth App (for the dashboard login) with callback URL
   `https://renovate.oglimmer.com/api/login/oauth2/code/github`
+- Optionally, a GitLab OAuth application (to also allow GitLab login) with redirect URI
+  `https://renovate.oglimmer.com/api/login/oauth2/code/gitlab` and the `read_api` scope
 
 ## Components
 
 - **Backend**: Spring Boot application (Java 21) serving the API under `/api`
 - **Frontend**: Nuxt.js application serving the web interface
-- **Dashboard**: GitHub-authenticated `/dashboard` page that compares Renovate configuration
-  across a user's repositories. Login uses GitHub OAuth (servlet Spring Security); the per-user
-  set of tracked repositories is persisted in PostgreSQL (Flyway-managed schema)
+- **Dashboard**: authenticated `/dashboard` page that compares Renovate configuration
+  across a user's repositories. Login uses GitHub or GitLab OAuth (servlet Spring Security);
+  the per-user set of tracked repositories is persisted in PostgreSQL (Flyway-managed schema)
 - **Ingress**: Routes `/api/*` to backend and `/*` to frontend
 - **Rate limiting**: A Traefik `RateLimit` middleware on a dedicated, higher-priority
   Ingress limits `/api/feedback` to 1 request/minute per client IP
@@ -112,6 +114,9 @@ type: Opaque
 stringData:
   github.client-id: "Iv1.xxxxxxxxxxxx"
   github.client-secret: "your-github-oauth-client-secret"
+  # Optional — include both to enable GitLab login, omit to disable it:
+  gitlab.client-id: "your-gitlab-application-id"
+  gitlab.client-secret: "your-gitlab-oauth-secret"
   db.url: "jdbc:postgresql://postgres.default.svc:5432/start_renovate_prod"
   db.username: "start-renovate-app"
   db.password: "${APP_DB_PASS}"
@@ -125,6 +130,11 @@ kubectl apply -f helm/sealed-app-secret.yaml
 The GitHub OAuth App's **Authorization callback URL** must be
 `https://renovate.oglimmer.com/api/login/oauth2/code/github`. The requested scopes
 (`repo`, `read:org`) are configured in the backend, not the secret.
+
+If GitLab login is enabled, the GitLab OAuth application's **Redirect URI** must be
+`https://renovate.oglimmer.com/api/login/oauth2/code/gitlab` with the `read_api` scope
+(also configured in the backend). The `gitlab.*` secret keys are optional — when they are
+absent the backend simply offers GitHub login only.
 
 ### 2. Update values.yaml
 

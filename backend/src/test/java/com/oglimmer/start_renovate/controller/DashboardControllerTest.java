@@ -8,9 +8,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.oglimmer.start_renovate.entity.AppUser;
+import com.oglimmer.start_renovate.repository.AppUserRepository;
 import com.oglimmer.start_renovate.repository.EnabledRepoRepository;
-import com.oglimmer.start_renovate.service.GitHubApiService;
-import com.oglimmer.start_renovate.service.GitHubTokenService;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -20,7 +20,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,10 +34,7 @@ class DashboardControllerTest {
 
   @Autowired private WebApplicationContext context;
   @Autowired private EnabledRepoRepository enabledRepoRepository;
-
-  // External calls are mocked; the security, JPA and OAuth2 wiring is real.
-  @MockitoBean private GitHubTokenService tokenService;
-  @MockitoBean private GitHubApiService gitHubApiService;
+  @Autowired private AppUserRepository appUserRepository;
 
   private void setupMvc() {
     mvc =
@@ -49,6 +45,8 @@ class DashboardControllerTest {
             .build();
   }
 
+  // oauth2Login() defaults to the "test" registration id; both providers expose "id" as the
+  // user-name attribute, so the principal name is the provider's numeric user id.
   private static OAuth2User ghUser(long id) {
     return new DefaultOAuth2User(
         List.of(new SimpleGrantedAuthority("ROLE_USER")), Map.of("id", id, "login", "octo"), "id");
@@ -64,7 +62,7 @@ class DashboardControllerTest {
   @Test
   void putWithoutCsrfIsForbidden() throws Exception {
     setupMvc();
-    mvc.perform(put("/repos/octo/hello/enabled").with(oauth2Login().oauth2User(ghUser(123))))
+    mvc.perform(put("/repos/enabled/octo/hello").with(oauth2Login().oauth2User(ghUser(123))))
         .andExpect(status().isForbidden());
   }
 
@@ -72,11 +70,14 @@ class DashboardControllerTest {
   void enableRepoPersistsSelection() throws Exception {
     setupMvc();
     mvc.perform(
-            put("/repos/octo/hello/enabled")
+            put("/repos/enabled/octo/hello")
                 .with(oauth2Login().oauth2User(ghUser(123)))
                 .with(csrf()))
         .andExpect(status().isNoContent());
 
-    assertThat(enabledRepoRepository.existsByUserIdAndRepoFullName(123L, "octo/hello")).isTrue();
+    AppUser user =
+        appUserRepository.findByProviderAndProviderUserId("test", "123").orElseThrow();
+    assertThat(enabledRepoRepository.existsByUserIdAndRepoFullName(user.getId(), "octo/hello"))
+        .isTrue();
   }
 }

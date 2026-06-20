@@ -1,11 +1,9 @@
 /* Copyright (c) 2025 by oglimmer.com / Oliver Zimpasser. All rights reserved. */
-package com.oglimmer.start_renovate.service;
+package com.oglimmer.start_renovate.service.repo;
 
-import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.oglimmer.start_renovate.config.GitHubProperties;
+import com.oglimmer.start_renovate.config.RenovateDetectionProperties;
 import com.oglimmer.start_renovate.dto.RepoSummary;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,7 +24,7 @@ import reactor.core.publisher.Mono;
 /** Talks to the GitHub REST API on behalf of the authenticated user. */
 @Slf4j
 @Service
-public class GitHubApiService {
+public class GitHubRepoProvider implements RepoProvider {
 
   /** Defensive cap on REST repo-list pagination to bound memory and rate-limit usage. */
   private static final int MAX_REPO_PAGES = 30;
@@ -45,31 +43,28 @@ public class GitHubApiService {
 
   private final WebClient gitHubWebClient;
   private final GitHubProperties props;
-  // Tolerant parser so hand-written .json5 / commented configs still map onto the matrix.
-  private final ObjectMapper lenientMapper =
-      JsonMapper.builder()
-          .enable(JsonReadFeature.ALLOW_JAVA_COMMENTS)
-          .enable(JsonReadFeature.ALLOW_TRAILING_COMMA)
-          .enable(JsonReadFeature.ALLOW_UNQUOTED_FIELD_NAMES)
-          .enable(JsonReadFeature.ALLOW_SINGLE_QUOTES)
-          .build();
+  private final RenovateDetectionProperties detection;
+  private final RenovateConfigParser parser;
 
-  public GitHubApiService(WebClient gitHubWebClient, GitHubProperties props) {
+  public GitHubRepoProvider(
+      WebClient gitHubWebClient,
+      GitHubProperties props,
+      RenovateDetectionProperties detection,
+      RenovateConfigParser parser) {
     this.gitHubWebClient = gitHubWebClient;
     this.props = props;
+    this.detection = detection;
+    this.parser = parser;
   }
 
-  /**
-   * Result of probing a repo for a Renovate config. {@code config} is null when {@code error} set.
-   */
-  public record RenovateConfigResult(String path, JsonNode config, String error) {
-    static RenovateConfigResult found(String path, JsonNode config) {
-      return new RenovateConfigResult(path, config, null);
-    }
+  @Override
+  public String id() {
+    return "github";
+  }
 
-    static RenovateConfigResult parseError(String path, String error) {
-      return new RenovateConfigResult(path, null, error);
-    }
+  @Override
+  public String webBaseUrl() {
+    return props.getWebBaseUrl();
   }
 
   /**
@@ -79,6 +74,7 @@ public class GitHubApiService {
    * resolves to {@code hasRenovateConfig=false} rather than failing the whole listing, so the
    * picker is always populated.
    */
+  @Override
   public Mono<List<RepoSummary>> listAllRepos(String token) {
     return listRepoMetadata(token)
         .flatMapMany(Flux::fromIterable)
@@ -115,7 +111,7 @@ public class GitHubApiService {
   private Mono<Boolean> hasRenovateConfigFile(String token, String fullName) {
     Set<String> rootNames = new HashSet<>();
     Map<String, Set<String>> subdirNames = new HashMap<>(); // first path segment -> filenames
-    for (String path : props.getConfigPaths()) {
+    for (String path : detection.getConfigPaths()) {
       int slash = path.indexOf('/');
       if (slash < 0) {
         rootNames.add(path);
@@ -165,8 +161,10 @@ public class GitHubApiService {
         .headers(h -> h.setBearerAuth(token))
         .retrieve()
         .toEntity(String.class)
-        .flatMap(response -> Mono.justOrEmpty(parseJsonOrNull(response.getBody())))
-        .onErrorResume(WebClientResponseException.class, ex -> Mono.empty());
+        .flatMap(response -> Mono.justOrEmpty(parser.parseOrNull(response.getBody())))
+        // Best-effort detection probe: any failure (HTTP error, connect/response timeout, empty
+        // repo) resolves to "no config" so a single bad repo never sinks the whole listing.
+        .onErrorResume(ex -> Mono.empty());
   }
 
   /** True if the tree holds a top-level blob whose name is in {@code names}. */
@@ -232,21 +230,9 @@ public class GitHubApiService {
         .toEntity(String.class)
         .map(
             response -> {
-              List<RepoSummary> repos = parseRepos(parseJsonOrNull(response.getBody()));
+              List<RepoSummary> repos = parseRepos(parser.parseOrNull(response.getBody()));
               return new RepoPage(repos, page, repos.size());
             });
-  }
-
-  private JsonNode parseJsonOrNull(String body) {
-    if (body == null || body.isBlank()) {
-      return null;
-    }
-    try {
-      return lenientMapper.readTree(body);
-    } catch (Exception ex) {
-      log.warn("Failed to parse GitHub /user/repos response: {}", ex.getMessage());
-      return null;
-    }
   }
 
   private List<RepoSummary> parseRepos(JsonNode body) {
@@ -278,11 +264,12 @@ public class GitHubApiService {
    * exists but fails to parse yields a result with {@code error} set (we do not fall through to the
    * next path, since the repo clearly intended that file to be its config).
    */
+  @Override
   public Mono<RenovateConfigResult> fetchRenovateConfig(String token, String fullName) {
     List<Mono<RenovateConfigResult>> attempts = new ArrayList<>();
-    for (String path : props.getConfigPaths()) {
+    for (String path : detection.getConfigPaths()) {
       attempts.add(
-          fetchRawFile(token, fullName, path).map(content -> parseConfigFile(content, path)));
+          fetchRawFile(token, fullName, path).map(content -> parser.parseConfigFile(content, path)));
     }
     attempts.add(fetchPackageJsonRenovate(token, fullName));
     return Flux.concat(attempts).next();
@@ -313,31 +300,16 @@ public class GitHubApiService {
         .onErrorResume(WebClientResponseException.NotFound.class, ex -> Mono.empty());
   }
 
-  private RenovateConfigResult parseConfigFile(String content, String path) {
-    try {
-      return RenovateConfigResult.found(path, lenientMapper.readTree(content));
-    } catch (Exception ex) {
-      log.warn("Failed to parse Renovate config {} : {}", path, ex.getMessage());
-      return RenovateConfigResult.parseError(
-          path, "Failed to parse " + path + ": " + ex.getMessage());
-    }
-  }
-
   private Mono<RenovateConfigResult> fetchPackageJsonRenovate(String token, String fullName) {
-    return fetchRawFile(token, fullName, props.getPackageJsonPath())
+    return fetchRawFile(token, fullName, detection.getPackageJsonPath())
         .flatMap(
-            content -> {
-              try {
-                JsonNode pkg = lenientMapper.readTree(content);
-                JsonNode renovate = pkg.get("renovate");
-                if (renovate != null && renovate.isObject()) {
-                  return Mono.just(
-                      RenovateConfigResult.found(props.getPackageJsonPath(), renovate));
-                }
-              } catch (Exception ex) {
-                log.warn("Failed to parse package.json for {}: {}", fullName, ex.getMessage());
-              }
-              return Mono.empty();
-            });
+            content ->
+                Mono.justOrEmpty(
+                    parser
+                        .extractPackageJsonRenovate(content)
+                        .map(
+                            renovate ->
+                                RenovateConfigResult.found(
+                                    detection.getPackageJsonPath(), renovate))));
   }
 }

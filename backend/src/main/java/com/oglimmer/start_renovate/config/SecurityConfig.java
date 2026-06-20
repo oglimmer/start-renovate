@@ -58,6 +58,8 @@ public class SecurityConfig {
             auth ->
                 auth.requestMatchers(HttpMethod.POST, "/feedback")
                     .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/providers")
+                    .permitAll()
                     .requestMatchers("/actuator/health", "/actuator/health/**")
                     .permitAll()
                     .requestMatchers("/oauth2/**", "/login/**")

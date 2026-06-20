@@ -13,17 +13,17 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 
 /**
- * Builds the shared {@link WebClient} used to call the GitHub REST API. Deliberately carries NO
- * default Authorization header — each request sets the current user's bearer token, since the token
- * is per-user and resolved at request time.
+ * Builds the shared {@link WebClient} used to call the GitLab REST API. Mirrors {@link
+ * GitHubWebClientConfig}: no default Authorization header, since the bearer token is per-user and
+ * applied per request.
  */
 @Configuration
-@EnableConfigurationProperties({GitHubProperties.class, RenovateDetectionProperties.class})
-public class GitHubWebClientConfig {
+@EnableConfigurationProperties(GitLabProperties.class)
+public class GitLabWebClientConfig {
 
   @Bean
-  public WebClient gitHubWebClient(GitHubProperties props) {
-    // Repo listings for users with many repos can be large; allow generous buffering.
+  public WebClient gitLabWebClient(GitLabProperties props) {
+    // Project listings for users in many groups can be large; allow generous buffering.
     int maxInMemorySizeBytes = 8 * 1024 * 1024;
 
     ExchangeStrategies strategies =
@@ -41,8 +41,7 @@ public class GitHubWebClientConfig {
     return WebClient.builder()
         .clientConnector(new ReactorClientHttpConnector(httpClient))
         .baseUrl(props.getApiBaseUrl())
-        .defaultHeader(HttpHeaders.ACCEPT, "application/vnd.github+json")
-        .defaultHeader("X-GitHub-Api-Version", "2022-11-28")
+        .defaultHeader(HttpHeaders.ACCEPT, "application/json")
         .exchangeStrategies(strategies)
         .build();
   }
