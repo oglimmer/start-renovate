@@ -4,8 +4,13 @@
     "config:recommended",
     ":enableVulnerabilityAlerts",
     ":dependencyDashboard",
-    ":semanticCommits"
+    ":semanticCommits",
+    "docker:pinDigests",
+    "helpers:pinGitHubActionDigests",
+    ":pinDevDependencies",
+    "abandonments:recommended"
   ],
+  "configMigration": true,
   "timezone": "Europe/Berlin",
   "prHourlyLimit": 10,
   "prConcurrentLimit": 20,
@@ -17,54 +22,24 @@
       "automerge": true,
       "matchUpdateTypes": [
         "minor",
-        "patch"
+        "patch",
+        "pin",
+        "digest"
       ]
-    },
-    {
-      "matchDepTypes": [
-        "devDependencies"
-      ],
-      "automerge": true
-    },
-    {
-      "matchManagers": [
-        "maven-wrapper",
-        "gradle-wrapper"
-      ],
-      "automerge": true
     },
     {
       "matchCurrentVersion": "/^0\\./",
       "automerge": false
     },
     {
-      "matchManagers": [
-        "npm"
+      "matchUpdateTypes": [
+        "major"
       ],
-      "groupName": "npm dependencies"
-    },
-    {
-      "matchManagers": [
-        "dockerfile",
-        "docker-compose"
-      ],
-      "groupName": "Docker dependencies"
-    },
-    {
-      "matchManagers": [
-        "maven"
-      ],
-      "groupName": "Maven dependencies"
-    },
-    {
-      "matchManagers": [
-        "helmv3",
-        "helmfile"
-      ],
-      "groupName": "Helm dependencies"
+      "dependencyDashboardApproval": true
     }
   ],
-  "ignoreTests": true,
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": [
@@ -73,6 +48,7 @@
     "automerge": true
   },
   "vulnerabilityAlerts": {
+    "minimumReleaseAge": "0 days",
     "labels": [
       "security"
     ],
