@@ -33,7 +33,7 @@ server:
 deepseek:
   base-url: "https://api.deepseek.com"
   api-key: "${DEEPSEEK_API_KEY}"
-  model: "deepseek-chat"
+  model: "deepseek-v4-flash"
   maxOutputTokens: 800
 github:
   api-base-url: "https://api.github.com"

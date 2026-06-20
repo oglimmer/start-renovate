@@ -1,6 +1,7 @@
 /* Copyright (c) 2025 by oglimmer.com / Oliver Zimpasser. All rights reserved. */
 package com.oglimmer.start_renovate.service;
 
+import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oglimmer.start_renovate.config.DeepSeekProperties;
@@ -112,7 +113,12 @@ public class RenovateFeedbackService {
     }
 
     try {
-      return objectMapper.readValue(content, RenovateFeedbackResponse.class);
+      // The model occasionally emits non-standard backslash escapes (e.g. "\." in a regex or
+      // path) inside string fields, which strict JSON rejects. Parse leniently so these survive.
+      return objectMapper
+          .reader()
+          .with(JsonReadFeature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER)
+          .readValue(content, RenovateFeedbackResponse.class);
     } catch (Exception ex) {
       log.error("Failed to parse DeepSeek JSON content: {}. content={}", ex.getMessage(), content);
       return new RenovateFeedbackResponse(
