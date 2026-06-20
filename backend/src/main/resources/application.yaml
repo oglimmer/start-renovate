@@ -4,8 +4,6 @@ spring:
     name: "start-renovate"
   mvc:
     async:
-      # Repo listing fans out many upstream API calls; give it headroom beyond the 30s servlet
-      # default so large accounts complete instead of returning a 503 (AsyncRequestTimeoutException).
       request-timeout: 120000
   datasource:
     url: "${DB_URL:jdbc:postgresql://localhost:5432/renovate}"
@@ -41,8 +39,6 @@ github:
   api-base-url: "https://api.github.com"
   web-base-url: "https://github.com"
 gitlab:
-  # GitLab login is optional: leave client-id unset to offer GitHub only. Redirect URI to register
-  # with GitLab: <app>/api/login/oauth2/code/gitlab — scope read_api.
   client-id: "${GITLAB_CLIENT_ID:}"
   client-secret: "${GITLAB_CLIENT_SECRET:}"
   scope: "read_api"

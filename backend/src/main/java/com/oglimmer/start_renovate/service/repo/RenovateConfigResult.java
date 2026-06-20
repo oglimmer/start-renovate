@@ -4,8 +4,8 @@ package com.oglimmer.start_renovate.service.repo;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
- * Result of probing a repository for a Renovate config. {@code config} is null when {@code error} is
- * set (the intended config file exists but could not be parsed).
+ * Result of probing a repository for a Renovate config. {@code config} is null when {@code error}
+ * is set (the intended config file exists but could not be parsed).
  */
 public record RenovateConfigResult(String path, JsonNode config, String error) {
 

@@ -28,7 +28,8 @@ public class AuthController {
   public List<ProviderInfo> providers() {
     List<ProviderInfo> available = new ArrayList<>();
     // InMemoryClientRegistrationRepository is iterable; only it can enumerate registrations.
-    if (clientRegistrationRepository instanceof InMemoryClientRegistrationRepository registrations) {
+    if (clientRegistrationRepository
+        instanceof InMemoryClientRegistrationRepository registrations) {
       for (ClientRegistration registration : registrations) {
         String id = registration.getRegistrationId();
         if (providerRegistry.isSupported(id)) {

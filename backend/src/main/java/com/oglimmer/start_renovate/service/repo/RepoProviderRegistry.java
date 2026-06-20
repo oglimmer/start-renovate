@@ -14,8 +14,7 @@ public class RepoProviderRegistry {
   private final Map<String, RepoProvider> byId;
 
   public RepoProviderRegistry(List<RepoProvider> providers) {
-    this.byId =
-        providers.stream().collect(Collectors.toMap(RepoProvider::id, Function.identity()));
+    this.byId = providers.stream().collect(Collectors.toMap(RepoProvider::id, Function.identity()));
   }
 
   public boolean isSupported(String providerId) {

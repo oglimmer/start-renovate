@@ -10,11 +10,11 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
 /**
- * Loads the provider profile on login and upserts the corresponding {@code AppUser} row, so the user
- * always exists in our database before any dashboard call. Works for any configured provider
- * (GitHub, GitLab, ...): the registration id selects how the profile attributes are interpreted (see
- * {@link ProviderUser}). Both providers are configured with {@code id} as the user-name attribute,
- * so {@link OAuth2User#getName()} yields the provider's numeric user id.
+ * Loads the provider profile on login and upserts the corresponding {@code AppUser} row, so the
+ * user always exists in our database before any dashboard call. Works for any configured provider
+ * (GitHub, GitLab, ...): the registration id selects how the profile attributes are interpreted
+ * (see {@link ProviderUser}). Both providers are configured with {@code id} as the user-name
+ * attribute, so {@link OAuth2User#getName()} yields the provider's numeric user id.
  */
 @Service
 @RequiredArgsConstructor

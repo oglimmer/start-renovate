@@ -21,7 +21,8 @@ import org.springframework.security.oauth2.core.AuthorizationGrantType;
  * the only way to make GitLab truly optional — present when configured, absent otherwise, without a
  * profile switch — is to construct its registration by hand.
  *
- * <p>Replaces Spring Boot's auto-configured repository (which is {@code @ConditionalOnMissingBean}).
+ * <p>Replaces Spring Boot's auto-configured repository (which is
+ * {@code @ConditionalOnMissingBean}).
  */
 @Configuration
 @EnableConfigurationProperties({OAuth2ClientProperties.class, GitLabProperties.class})
@@ -31,7 +32,8 @@ public class ClientRegistrationConfig {
   public ClientRegistrationRepository clientRegistrationRepository(
       OAuth2ClientProperties oauthProperties, GitLabProperties gitLabProperties) {
     List<ClientRegistration> registrations =
-        new ArrayList<>(new OAuth2ClientPropertiesMapper(oauthProperties).asClientRegistrations().values());
+        new ArrayList<>(
+            new OAuth2ClientPropertiesMapper(oauthProperties).asClientRegistrations().values());
     if (gitLabProperties.isEnabled()) {
       registrations.add(gitLabRegistration(gitLabProperties));
     }

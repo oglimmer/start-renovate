@@ -247,13 +247,16 @@ public class GitLabRepoProvider implements RepoProvider {
     List<Mono<RenovateConfigResult>> attempts = new ArrayList<>();
     for (String path : detection.getConfigPaths()) {
       attempts.add(
-          fetchRawFile(token, fullName, path).map(content -> parser.parseConfigFile(content, path)));
+          fetchRawFile(token, fullName, path)
+              .map(content -> parser.parseConfigFile(content, path)));
     }
     attempts.add(fetchPackageJsonRenovate(token, fullName));
     return Flux.concat(attempts).next();
   }
 
-  /** GET the raw bytes of a file; empty Mono on 404 (file absent). Ref defaults to default branch. */
+  /**
+   * GET the raw bytes of a file; empty Mono on 404 (file absent). Ref defaults to default branch.
+   */
   private Mono<String> fetchRawFile(String token, String fullName, String path) {
     String uri =
         props.getApiBaseUrl()

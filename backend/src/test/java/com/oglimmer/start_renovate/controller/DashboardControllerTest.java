@@ -75,8 +75,7 @@ class DashboardControllerTest {
                 .with(csrf()))
         .andExpect(status().isNoContent());
 
-    AppUser user =
-        appUserRepository.findByProviderAndProviderUserId("test", "123").orElseThrow();
+    AppUser user = appUserRepository.findByProviderAndProviderUserId("test", "123").orElseThrow();
     assertThat(enabledRepoRepository.existsByUserIdAndRepoFullName(user.getId(), "octo/hello"))
         .isTrue();
   }

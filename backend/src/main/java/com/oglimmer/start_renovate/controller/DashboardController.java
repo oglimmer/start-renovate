@@ -33,8 +33,8 @@ import reactor.core.publisher.Mono;
 /**
  * Endpoints powering the dashboard. All require an authenticated session (enforced by {@code
  * SecurityConfig}). The provider is selected from the OAuth registration id on the authentication;
- * the access token and local user id are resolved on the servlet thread and passed into the reactive
- * fan-out, which runs on threads without a security context.
+ * the access token and local user id are resolved on the servlet thread and passed into the
+ * reactive fan-out, which runs on threads without a security context.
  */
 @RestController
 @RequiredArgsConstructor
@@ -85,8 +85,7 @@ public class DashboardController {
 
   @PutMapping("/repos/enabled/{*fullName}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void enableRepo(
-      OAuth2AuthenticationToken authentication, @PathVariable String fullName) {
+  public void enableRepo(OAuth2AuthenticationToken authentication, @PathVariable String fullName) {
     String repo = normalizeFullName(fullName);
     Long userId = currentUserId(authentication);
     if (!enabledRepoRepository.existsByUserIdAndRepoFullName(userId, repo)) {
@@ -96,8 +95,7 @@ public class DashboardController {
 
   @DeleteMapping("/repos/enabled/{*fullName}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void disableRepo(
-      OAuth2AuthenticationToken authentication, @PathVariable String fullName) {
+  public void disableRepo(OAuth2AuthenticationToken authentication, @PathVariable String fullName) {
     enabledRepoRepository.deleteByUserIdAndRepoFullName(
         currentUserId(authentication), normalizeFullName(fullName));
   }

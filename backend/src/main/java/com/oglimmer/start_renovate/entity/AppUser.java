@@ -60,7 +60,8 @@ public class AppUser {
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
-  public AppUser(String provider, String providerUserId, String login, String name, String avatarUrl) {
+  public AppUser(
+      String provider, String providerUserId, String login, String name, String avatarUrl) {
     this.provider = provider;
     this.providerUserId = providerUserId;
     this.login = login;

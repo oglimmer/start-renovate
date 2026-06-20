@@ -50,7 +50,9 @@ public class RenovateConfigParser {
     }
   }
 
-  /** Extracts the embedded {@code "renovate"} object from a {@code package.json} body, if present. */
+  /**
+   * Extracts the embedded {@code "renovate"} object from a {@code package.json} body, if present.
+   */
   public Optional<JsonNode> extractPackageJsonRenovate(String packageJsonContent) {
     try {
       JsonNode pkg = lenientMapper.readTree(packageJsonContent);
