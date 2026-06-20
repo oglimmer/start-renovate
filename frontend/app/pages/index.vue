@@ -1496,7 +1496,7 @@
               :class="importTab === 'url' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'"
               @click="importTab = 'url'; importError = ''"
             >
-              GitHub URL
+              Repository URL
             </button>
           </div>
 
@@ -1515,7 +1515,7 @@
             </button>
           </div>
 
-          <!-- GitHub URL Tab -->
+          <!-- Repository URL Tab -->
           <div v-if="importTab === 'url'">
             <input
               v-model="importUrl"
@@ -1524,7 +1524,7 @@
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
             >
             <p class="mt-2 text-xs text-gray-500">
-              Supports GitHub URLs in various formats: direct file links, repository URLs (will look for renovate.json in root), or raw.githubusercontent.com URLs.
+              Supports GitHub and GitLab URLs in various formats: direct file links (blob/raw), or repository root URLs (will look for renovate.json on the default branch).
             </p>
             <button
               :disabled="isImporting"
@@ -1843,6 +1843,15 @@ const parseRenovateJson = (jsonString: string): Partial<RenovateConfig> => {
   return result
 }
 
+// Convert a repository URL (GitHub or GitLab) to its raw content URL
+const convertToRawUrl = (url: string): string => {
+  // GitLab URLs use the `/-/` path marker; route them to the GitLab converter.
+  if (url.includes('/-/') || url.includes('gitlab')) {
+    return convertToRawGitLabUrl(url)
+  }
+  return convertToRawGitHubUrl(url)
+}
+
 // Convert GitHub URL to raw content URL
 const convertToRawGitHubUrl = (url: string): string => {
   // Handle various GitHub URL formats
@@ -1874,6 +1883,32 @@ const convertToRawGitHubUrl = (url: string): string => {
   return url
 }
 
+// Convert GitLab URL to raw content URL (supports gitlab.com, subgroups, and self-hosted instances)
+const convertToRawGitLabUrl = (url: string): string => {
+  // Handle various GitLab URL formats
+  // https://gitlab.com/group/project/-/blob/branch/path/to/renovate.json
+  // https://gitlab.com/group/subgroup/project/-/raw/branch/path/to/renovate.json
+  // https://gitlab.com/group/project (repo root)
+
+  // Already a raw URL
+  if (url.includes('/-/raw/')) {
+    return url
+  }
+
+  // Convert blob URL to raw URL
+  if (url.includes('/-/blob/')) {
+    return url.replace('/-/blob/', '/-/raw/')
+  }
+
+  // If it's a repo root URL (no `/-/` segment), try renovate.json on the default branch
+  if (!url.includes('/-/')) {
+    const base = url.replace(/\/$/, '')
+    return `${base}/-/raw/main/renovate.json`
+  }
+
+  return url
+}
+
 // Import from pasted JSON
 const importFromJson = () => {
   importError.value = ''
@@ -1893,19 +1928,19 @@ const importFromJson = () => {
   }
 }
 
-// Import from GitHub URL
+// Import from a GitHub or GitLab URL
 const importFromUrl = async () => {
   importError.value = ''
 
   if (!importUrl.value.trim()) {
-    importError.value = 'Please enter a GitHub URL'
+    importError.value = 'Please enter a GitHub or GitLab URL'
     return
   }
 
   isImporting.value = true
 
   try {
-    const rawUrl = convertToRawGitHubUrl(importUrl.value.trim())
+    const rawUrl = convertToRawUrl(importUrl.value.trim())
     const response = await fetch(rawUrl)
 
     if (!response.ok) {
