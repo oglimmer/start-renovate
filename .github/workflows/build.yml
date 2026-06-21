@@ -3,8 +3,10 @@ name: Build & push images
 # Builds the frontend and/or backend Docker images and pushes them to
 # registry.oglimmer.com via the repo's oglimmer.sh script, on the in-cluster
 # self-hosted ARC runner (arm64, Docker-in-Docker). Only the components whose
-# files changed are built (mirrors ci.yml). Rollout is left to the cluster
-# (keel), so we pass --no-restart.
+# files changed are built (mirrors ci.yml). The build itself passes
+# --no-restart (no kubectl on the runner); rollout is triggered afterwards by
+# POSTing to the restart hook (restart.oglimmer.com), authenticated with the
+# RESTART_TOKEN secret.
 
 on:
   push:
@@ -61,6 +63,13 @@ jobs:
       - name: Build & push backend
         run: ./oglimmer.sh build -b --no-restart --platform auto --verbose
 
+      # Trigger an in-cluster rollout via the restart hook.
+      - name: Restart backend deployment
+        run: |
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${{ secrets.RESTART_TOKEN }}" \
+            https://restart.oglimmer.com/restart/default/start-renovate-backend
+
   frontend:
     needs: changes
     if: ${{ needs.changes.outputs.frontend == 'true' }}
@@ -77,3 +86,10 @@ jobs:
 
       - name: Build & push frontend
         run: ./oglimmer.sh build -f --no-restart --platform auto --verbose
+
+      # Trigger an in-cluster rollout via the restart hook.
+      - name: Restart frontend deployment
+        run: |
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${{ secrets.RESTART_TOKEN }}" \
+            https://restart.oglimmer.com/restart/default/start-renovate-frontend
