@@ -3,10 +3,9 @@ name: Build & push images
 # Builds the frontend and/or backend Docker images and pushes them to
 # registry.oglimmer.com via the repo's oglimmer.sh script, on the in-cluster
 # self-hosted ARC runner (arm64, Docker-in-Docker). Only the components whose
-# files changed are built (mirrors ci.yml). The build itself passes
-# --no-restart (no kubectl on the runner); rollout is triggered afterwards by
-# POSTing to the restart hook (restart.oglimmer.com), authenticated with the
-# RESTART_TOKEN secret.
+# files changed are built (mirrors ci.yml). The runner has no kubectl, so
+# oglimmer.sh triggers the rollout via the restart hook (restart.oglimmer.com)
+# using the RESTART_TOKEN secret passed in the environment.
 
 on:
   push:
@@ -60,15 +59,11 @@ jobs:
       # --platform auto -> plain `docker build` + `docker push` via the dind
       # daemon (native arm64). Avoids the buildx docker-container driver, whose
       # push session times out against the registry's public ingress.
-      - name: Build & push backend
-        run: ./oglimmer.sh build -b --no-restart --platform auto --verbose
-
-      # Trigger an in-cluster rollout via the restart hook.
-      - name: Restart backend deployment
-        run: |
-          curl -fsS -X POST \
-            -H "Authorization: Bearer ${{ secrets.RESTART_TOKEN }}" \
-            https://restart.oglimmer.com/restart/default/start-renovate-backend
+      # No kubectl on the runner, so the rollout goes through the restart hook.
+      - name: Build, push & restart backend
+        env:
+          RESTART_TOKEN: ${{ secrets.RESTART_TOKEN }}
+        run: ./oglimmer.sh build -b --platform auto --verbose
 
   frontend:
     needs: changes
@@ -84,12 +79,8 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Build & push frontend
-        run: ./oglimmer.sh build -f --no-restart --platform auto --verbose
-
-      # Trigger an in-cluster rollout via the restart hook.
-      - name: Restart frontend deployment
-        run: |
-          curl -fsS -X POST \
-            -H "Authorization: Bearer ${{ secrets.RESTART_TOKEN }}" \
-            https://restart.oglimmer.com/restart/default/start-renovate-frontend
+      # No kubectl on the runner, so the rollout goes through the restart hook.
+      - name: Build, push & restart frontend
+        env:
+          RESTART_TOKEN: ${{ secrets.RESTART_TOKEN }}
+        run: ./oglimmer.sh build -f --platform auto --verbose
