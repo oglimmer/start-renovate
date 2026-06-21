@@ -80,6 +80,30 @@
             </button>
           </div>
 
+          <!-- Preset Selector -->
+          <div class="border border-indigo-200 bg-indigo-50 rounded-lg p-6 mb-6">
+            <label for="preset" class="text-lg font-medium text-gray-900 block mb-2">
+              Start from a preset
+            </label>
+            <select
+              id="preset"
+              v-model="selectedPreset"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+              @change="applyPreset"
+            >
+              <option v-for="preset in configPresets" :key="preset.id" :value="preset.id">
+                {{ preset.label }}
+              </option>
+            </select>
+            <p class="text-sm text-gray-600 mt-2">
+              {{ activePreset?.description }}
+            </p>
+            <p class="text-xs text-gray-500 mt-2">
+              Picking a preset replaces every option below with that preset's values. You can still tweak any
+              option afterwards.
+            </p>
+          </div>
+
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-2xl font-semibold text-gray-900">Configuration Options</h2>
             <button
@@ -1561,7 +1585,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { generateRenovateConfigJson, defaultRenovateConfig, type RenovateConfig } from '../lib/generateRenovateConfig'
+import { generateRenovateConfigJson, configPresets, defaultPresetId, renovateDefaultsConfig, type RenovateConfig } from '../lib/generateRenovateConfig'
 
 // sessionStorage key the dashboard uses to hand a repo's renovate.json to the editor.
 const EDITOR_IMPORT_KEY = 'renovate:editor-import'
@@ -1582,7 +1606,20 @@ interface FeedbackResponse {
 // Defaults live in the shared lib so the form and the /generate pseudo-API
 // agree on a single source of truth. structuredClone keeps this instance
 // isolated from the exported constant.
-const config = ref<RenovateConfig>(structuredClone(defaultRenovateConfig))
+const config = ref<RenovateConfig>(structuredClone(renovateDefaultsConfig))
+
+// Preset selector. The form opens on the neutral Renovate defaults preset, so
+// the dropdown starts there. Selecting a preset overwrites every field; the
+// user can still tweak individual options afterwards.
+const selectedPreset = ref<string>(defaultPresetId)
+const activePreset = computed(() => configPresets.find(p => p.id === selectedPreset.value))
+
+const applyPreset = () => {
+  const preset = configPresets.find(p => p.id === selectedPreset.value)
+  if (preset) {
+    config.value = structuredClone(preset.config)
+  }
+}
 
 const feedback = ref<FeedbackResponse | null>(null)
 const isLoadingFeedback = ref(false)

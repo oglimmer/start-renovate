@@ -2,9 +2,12 @@ import { describe, it, expect } from 'vitest'
 import {
   buildRenovateConfig,
   configFromQuery,
+  configPresets,
+  defaultPresetId,
   defaultRenovateConfig,
   generateConfigJsonFromQuery,
   generateRenovateConfigJson,
+  renovateDefaultsConfig,
   type RenovateConfig
 } from './generateRenovateConfig'
 
@@ -232,6 +235,67 @@ describe('buildRenovateConfig — safe-by-default settings', () => {
     expect(configFromQuery({ flagAbandonedPackages: 'false' }).flagAbandonedPackages).toBe(false)
     expect(configFromQuery({ requireMajorApproval: 'false' }).requireMajorApproval).toBe(false)
     expect(configFromQuery({}).pinning).toEqual({ dockerDigests: true, githubActionDigests: true, devDependencies: true })
+  })
+})
+
+describe('configPresets — selectable starting points', () => {
+  it('lists renovate-defaults first (it is the form default) followed by oglimmer', () => {
+    expect(configPresets.map(p => p.id)).toEqual(['renovate-defaults', 'oglimmer'])
+  })
+
+  it('defaults the form to the renovate-defaults preset', () => {
+    expect(defaultPresetId).toBe('renovate-defaults')
+    expect(configPresets.some(p => p.id === defaultPresetId)).toBe(true)
+  })
+
+  it('maps the oglimmer preset to the shared opinionated defaults', () => {
+    const oglimmer = configPresets.find(p => p.id === 'oglimmer')
+    expect(oglimmer?.config).toBe(defaultRenovateConfig)
+  })
+
+  it('automerges all dev dependencies in the oglimmer preset by default', () => {
+    expect(defaultRenovateConfig.automergeDevDependencies).toBe(true)
+    const rules = buildRenovateConfig(defaultRenovateConfig).packageRules ?? []
+    expect(rules).toContainEqual({ matchDepTypes: ['devDependencies'], automerge: true })
+  })
+
+  it('maps the renovate-defaults preset to the neutral baseline', () => {
+    const preset = configPresets.find(p => p.id === 'renovate-defaults')
+    expect(preset?.config).toBe(renovateDefaultsConfig)
+  })
+
+  it('renovate-defaults parks every opinionated knob at its neutral position', () => {
+    expect(renovateDefaultsConfig.semanticCommits).toBe(false)
+    expect(renovateDefaultsConfig.automergeLevel).toBe('disabled')
+    expect(renovateDefaultsConfig.minimumReleaseAge).toBe('never')
+    expect(renovateDefaultsConfig.requireMajorApproval).toBe(false)
+    expect(renovateDefaultsConfig.lockFileMaintenance.enabled).toBe(false)
+    expect(renovateDefaultsConfig.pinning).toEqual({
+      dockerDigests: false,
+      githubActionDigests: false,
+      devDependencies: false
+    })
+    expect(renovateDefaultsConfig.flagAbandonedPackages).toBe(false)
+    expect(Object.values(renovateDefaultsConfig.grouping).every(v => v === false)).toBe(true)
+  })
+
+  it('renovate-defaults emits none of the hardening/automerge opinions, only the always-on baseline', () => {
+    const out = buildRenovateConfig(renovateDefaultsConfig)
+    // Always-on baseline the form can't turn off.
+    expect(out.extends).toContain('config:recommended')
+    expect(out.extends).toContain(':enableVulnerabilityAlerts')
+    expect(out.extends).toContain(':dependencyDashboard')
+    // Opinions that must be absent in the neutral preset.
+    expect(out.extends).not.toContain(':semanticCommits')
+    expect(out.extends).not.toContain('docker:pinDigests')
+    expect(out.extends).not.toContain('helpers:pinGitHubActionDigests')
+    expect(out.extends).not.toContain(':pinDevDependencies')
+    expect(out.extends).not.toContain('abandonments:recommended')
+    expect(out.packageRules).toBeUndefined()
+    expect(out.minimumReleaseAge).toBeUndefined()
+    expect(out.internalChecksFilter).toBeUndefined()
+    expect(out.lockFileMaintenance).toBeUndefined()
+    expect(out.automergeType).toBeUndefined()
   })
 })
 

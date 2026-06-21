@@ -60,7 +60,10 @@ export const defaultRenovateConfig: RenovateConfig = {
   // deliberate default — see the platformAutomerge note in buildRenovateConfig.
   automergeType: 'branch',
   automergeLevel: 'minor',
-  automergeDevDependencies: false,
+  // devDependencies (build tools, linters, test frameworks) aren't shipped to
+  // consumers, so automerging all of them — regardless of update type — is a
+  // safe way to cut review noise. On by default in the hardened profile.
+  automergeDevDependencies: true,
   ignoreTests: false,
   disablePreOneAutomerge: true,
   // Gate major updates behind a Dependency Dashboard checkbox: no PR is created
@@ -120,6 +123,95 @@ export const defaultRenovateConfig: RenovateConfig = {
     nuget: false
   }
 }
+
+// Neutral baseline: every opinionated knob parked at its "let Renovate decide"
+// position. This is the closest the form can get to plain Renovate defaults —
+// `config:recommended`, `:enableVulnerabilityAlerts` and `:dependencyDashboard`
+// are always emitted by buildRenovateConfig (they are not form-configurable), so
+// this preset just turns OFF every extra opinion the tool layers on top:
+// no forced semantic commits, no pinning, no automerge, no release-age delay,
+// no lock-file maintenance, no grouping.
+export const renovateDefaultsConfig: RenovateConfig = {
+  semanticCommits: false,
+  timezone: '',
+  schedule: 'at-any-time',
+  prLimitStrategy: 'default',
+  rebaseWhen: 'auto',
+  rangeStrategy: 'auto',
+  automergeType: 'pr',
+  automergeLevel: 'disabled',
+  automergeDevDependencies: false,
+  ignoreTests: false,
+  disablePreOneAutomerge: false,
+  requireMajorApproval: false,
+  minimumReleaseAge: 'never',
+  pinning: {
+    dockerDigests: false,
+    githubActionDigests: false,
+    devDependencies: false
+  },
+  flagAbandonedPackages: false,
+  lockFileMaintenance: {
+    enabled: false,
+    schedule: 'at-any-time',
+    automerge: false
+  },
+  vulnerabilityAlerts: {
+    labels: '',
+    scheduleOverride: false,
+    automerge: false
+  },
+  grouping: {
+    npm: false,
+    docker: false,
+    maven: false,
+    gradle: false,
+    pip: false,
+    composer: false,
+    helm: false,
+    githubActions: false,
+    terraform: false,
+    gomod: false,
+    cargo: false,
+    bundler: false,
+    nuget: false
+  }
+}
+
+// Selectable starting points for the form. Each preset is a full RenovateConfig
+// the user can load and then tweak. `oglimmer` is the opinionated, hardened
+// default (== defaultRenovateConfig, the single source of truth shared with the
+// /generate pseudo-API); `renovate-defaults` is the neutral baseline above.
+export interface ConfigPreset {
+  id: string
+  label: string
+  description: string
+  config: RenovateConfig
+}
+
+export const configPresets: ConfigPreset[] = [
+  {
+    id: 'renovate-defaults',
+    label: 'Renovate defaults',
+    description:
+      'A minimal, neutral baseline — config:recommended plus the dependency dashboard and ' +
+      'vulnerability alerts, with every extra opinion (pinning, automerge, schedules, grouping) left off.',
+    config: renovateDefaultsConfig
+  },
+  {
+    id: 'oglimmer',
+    label: 'oglimmer (hardened defaults)',
+    description:
+      'Opinionated, security-hardened profile: digest/SHA pinning, 7-day release-age window, ' +
+      'branch automerge for a clean git history, weekly lock-file maintenance and major-update gating.',
+    config: defaultRenovateConfig
+  }
+]
+
+// The preset the form starts on. Kept separate from defaultRenovateConfig (the
+// /generate pseudo-API baseline) — that stays the opinionated profile, while the
+// interactive form opens on the neutral Renovate defaults.
+export const defaultPresetId = 'renovate-defaults'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildRenovateConfig(config: RenovateConfig): Record<string, any> {
