@@ -12,61 +12,51 @@
   ],
   "configMigration": true,
   "timezone": "Europe/Berlin",
-  "prHourlyLimit": 10,
-  "prConcurrentLimit": 20,
+  "schedule": ["before 5am on monday"],
+  "prHourlyLimit": 1,
+  "prConcurrentLimit": 3,
   "rebaseWhen": "behind-base-branch",
   "rangeStrategy": "bump",
   "automergeType": "branch",
   "packageRules": [
     {
+      "description": "Auto-merge low-risk updates (minor, patch, version pins and digest bumps) once checks pass.",
       "automerge": true,
-      "matchUpdateTypes": [
-        "minor",
-        "patch",
-        "pin",
-        "digest"
-      ]
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"]
     },
     {
+      "description": "Never auto-merge pre-1.0 (0.x) dependencies, where minor bumps can be breaking.",
       "matchCurrentVersion": "/^0\\./",
       "automerge": false
     },
     {
-      "matchUpdateTypes": [
-        "major"
-      ],
+      "description": "Hold major updates behind manual approval via the Dependency Dashboard.",
+      "matchUpdateTypes": ["major"],
       "dependencyDashboardApproval": true
     },
     {
-      "matchManagers": [
-        "npm"
-      ],
+      "description": "Group all npm (frontend) dependency updates into a single PR.",
+      "matchManagers": ["npm"],
       "groupName": "npm dependencies"
     },
     {
-      "matchManagers": [
-        "dockerfile",
-        "docker-compose"
-      ],
-      "groupName": "Docker dependencies"
-    },
-    {
-      "matchManagers": [
-        "maven"
-      ],
+      "description": "Group all Maven (backend) dependency updates into a single PR.",
+      "matchManagers": ["maven"],
       "groupName": "Maven dependencies"
     },
     {
-      "matchManagers": [
-        "helmv3",
-        "helmfile"
-      ],
+      "description": "Group Dockerfile base-image updates into a single PR.",
+      "matchManagers": ["dockerfile"],
+      "groupName": "Docker dependencies"
+    },
+    {
+      "description": "Group Helm chart dependency updates into a single PR.",
+      "matchManagers": ["helmv3"],
       "groupName": "Helm dependencies"
     },
     {
-      "matchManagers": [
-        "github-actions"
-      ],
+      "description": "Group GitHub Actions workflow updates into a single PR.",
+      "matchManagers": ["github-actions"],
       "groupName": "GitHub Actions"
     }
   ],
@@ -74,19 +64,13 @@
   "internalChecksFilter": "strict",
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": [
-      "before 5am on monday"
-    ],
+    "schedule": ["before 5am on monday"],
     "automerge": true
   },
   "vulnerabilityAlerts": {
     "minimumReleaseAge": "0 days",
-    "labels": [
-      "security"
-    ],
-    "schedule": [
-      "at any time"
-    ],
+    "labels": ["security"],
+    "schedule": ["at any time"],
     "automerge": true
   }
 }

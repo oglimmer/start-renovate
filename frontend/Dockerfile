@@ -1,4 +1,7 @@
-# Multi-stage build for Nuxt 3 frontend
+# Multi-stage build for the Nuxt frontend.
+# The runtime is a Nitro node-server (not static nginx) so /api/generate can be
+# served dynamically; all other pages are prerendered into .output/public and
+# served as static files by the same Nitro process.
 FROM node:24.15.0-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f AS build
 
 WORKDIR /app
@@ -15,95 +18,30 @@ COPY . .
 # Build for production
 RUN npm run build
 
-# Runtime stage with nginx
-FROM nginx:alpine
+# Runtime stage: Nitro node-server
+FROM node:24.15.0-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
 
-# Create non-root user
-RUN addgroup -g 10001 -S appgroup && \
-    adduser -u 10001 -S appuser -G appgroup
+WORKDIR /app
 
-# Copy nginx configuration
-COPY <<'EOF' /etc/nginx/nginx.conf
-worker_processes  auto;
+# The standalone .output bundle is fully self-contained (Nitro bundles all server
+# deps) — no package.json/node_modules install needed at runtime.
+COPY --from=build /app/.output ./.output
 
-error_log  /tmp/nginx-error.log notice;
-pid        /tmp/nginx.pid;
+# Listen on 8080 (matches the k8s Service targetPort and the old nginx port) on
+# all interfaces so the ingress/Service can reach it.
+ENV NODE_ENV=production \
+    NITRO_PORT=8080 \
+    NITRO_HOST=0.0.0.0 \
+    PORT=8080
 
-events {
-    worker_connections  1024;
-}
+# Run as the built-in non-root `node` user (uid 1000) — matches the k8s
+# securityContext runAsUser: 1000.
+USER node
 
-http {
-    include       /etc/nginx/mime.types;
-    default_type  application/octet-stream;
-
-    # Use /tmp for cache directories (writable by non-root)
-    client_body_temp_path /tmp/client_temp;
-    proxy_temp_path       /tmp/proxy_temp;
-    fastcgi_temp_path     /tmp/fastcgi_temp;
-    uwsgi_temp_path       /tmp/uwsgi_temp;
-    scgi_temp_path        /tmp/scgi_temp;
-
-    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-                      '$status $body_bytes_sent "$http_referer" '
-                      '"$http_user_agent" "$http_x_forwarded_for"';
-
-    access_log  /tmp/nginx-access.log  main;
-
-    sendfile        on;
-    tcp_nopush     on;
-    keepalive_timeout  65;
-    gzip  on;
-
-    server {
-        listen       8080;
-        server_name  localhost;
-
-        # Behind a reverse proxy (Traefik ingress) the public port differs from
-        # the container's listen port (8080). Emit relative redirects so nginx
-        # never leaks ":8080" into the Location header on directory (trailing
-        # slash) redirects.
-        absolute_redirect off;
-        port_in_redirect  off;
-
-        root   /usr/share/nginx/html;
-        index  index.html;
-
-        location / {
-            try_files $uri $uri/ /index.html;
-        }
-
-        location /api {
-            # This won't be used in production as Ingress handles routing
-            # But useful for local Docker testing with docker-compose
-            proxy_pass http://start-renovate-backend:8080;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   /usr/share/nginx/html;
-        }
-    }
-}
-EOF
-
-# Copy built files from build stage (Nuxt outputs to .output/public)
-COPY --from=build /app/.output/public /usr/share/nginx/html
-
-# Adjust permissions
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
-    chmod -R 755 /usr/share/nginx/html
-
-# Expose port 8080 (non-privileged port)
 EXPOSE 8080
 
-# Health check
+# Health check (wget ships in the node:alpine base image).
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1
 
-# Run nginx
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", ".output/server/index.mjs"]

@@ -25,10 +25,12 @@
       </ClientOnly>
 
       <p class="text-xs text-gray-500 mt-4">
-        This endpoint runs entirely in your browser. It maps the URL query parameters onto the default
-        configuration and returns the generated <code class="text-gray-400">renovate.json</code> — the exact same
-        logic used by the <NuxtLink to="/" class="text-indigo-400 hover:text-indigo-300">interactive form</NuxtLink>.
-        See the <NuxtLink to="/developers" class="text-indigo-400 hover:text-indigo-300">developer docs</NuxtLink> for all parameters.
+        This page maps the URL query parameters onto the default configuration and renders the generated
+        <code class="text-gray-400">renovate.json</code> in your browser — the exact same logic used by the
+        <NuxtLink to="/" class="text-indigo-400 hover:text-indigo-300">interactive form</NuxtLink>.
+        For scripts and CI, call the REST endpoint <code class="text-gray-400">GET /api/generate</code> with the same
+        query parameters — it returns raw <code class="text-gray-400">application/json</code>. See the
+        <NuxtLink to="/developers" class="text-indigo-400 hover:text-indigo-300">developer docs</NuxtLink> for all parameters.
       </p>
     </div>
   </div>

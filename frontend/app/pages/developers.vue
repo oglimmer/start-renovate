@@ -186,23 +186,26 @@
           <section id="generate" class="bg-white shadow-xl rounded-lg p-8 scroll-mt-8">
             <div class="flex items-center gap-3 mb-1 flex-wrap">
               <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-sky-100 text-sky-800">GET</span>
-              <code class="text-lg font-mono text-gray-900">/generate</code>
-              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">runs in the browser</span>
+              <code class="text-lg font-mono text-gray-900">/api/generate</code>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">no auth · no rate limit</span>
             </div>
             <p class="text-gray-700 mt-3 mb-4">
               Build a <code class="bg-gray-100 px-1 rounded">renovate.json</code> straight from URL query parameters —
-              the form, without the form.
+              the form, without the form. Returns <code class="bg-gray-100 px-1 rounded">application/json</code>, so you
+              can pipe it straight into a file from <code class="bg-gray-100 px-1 rounded">curl</code>, CI or a bot.
             </p>
 
             <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded mb-6 text-sm text-blue-900">
               <p class="mb-2"><strong>What it does:</strong> maps query parameters onto the default configuration and
-                returns the generated JSON. Open it in a browser, link to it, or fetch it and read
-                <code class="bg-white px-1 rounded">response.text()</code>.</p>
-              <p class="mb-2"><strong>Why it exists:</strong> it shares the <em>exact same generation logic</em> as the
-                interactive form — there is a single source of truth, so the two can never drift apart.</p>
-              <p><strong>Note:</strong> unlike <code class="bg-white px-1 rounded">/api/feedback</code>, this is not a
-                server endpoint. It's a statically-hosted page that computes the result client-side, so there is no AI,
-                no validation step, and no rate limit.</p>
+                returns the generated config as JSON. No request body — everything is in the query string.</p>
+              <p class="mb-2"><strong>Why it exists:</strong> it runs the <em>exact same generation function</em> as the
+                interactive form (one shared module) — single source of truth, so the API and the UI can never drift apart.</p>
+              <p class="mb-2"><strong>How it differs from <code class="bg-white px-1 rounded">/api/feedback</code>:</strong>
+                this is a pure, deterministic mapping — no AI, no schema validation, no rate limit, no authentication.
+                <code class="bg-white px-1 rounded">CORS</code> is open (<code class="bg-white px-1 rounded">Access-Control-Allow-Origin: *</code>),
+                so unlike <code class="bg-white px-1 rounded">/api/feedback</code> you can also call it from the browser cross-origin.</p>
+              <p><strong>Prefer a browser?</strong> The same result is rendered as a human-friendly page at
+                <NuxtLink to="/generate" class="underline">/generate</NuxtLink> (same query parameters) with a copy button.</p>
             </div>
 
             <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3">Rules</h3>
@@ -214,10 +217,13 @@
             </ul>
 
             <h3 class="text-lg font-semibold text-gray-900 mb-3">Example request</h3>
+            <p class="text-sm font-medium text-gray-700 mb-2">cURL</p>
+            <CodeBlock :code="generateCurlExample" lang="bash" copy-key="gencurl" :copied="copied" @copy="copy" />
+            <p class="text-sm font-medium text-gray-700 mb-2 mt-4">URL (also opens in a browser at <code class="bg-gray-100 px-1 rounded">/generate</code>)</p>
             <CodeBlock :code="generateUrlExample" lang="url" copy-key="genurl" :copied="copied" @copy="copy" />
 
             <h3 class="text-lg font-semibold text-gray-900 mb-2 mt-6">Response</h3>
-            <p class="text-sm text-gray-600 mb-3">The generated <code class="bg-gray-100 px-1 rounded">renovate.json</code> (omitted parameters fall back to defaults):</p>
+            <p class="text-sm text-gray-600 mb-3">The generated <code class="bg-gray-100 px-1 rounded">renovate.json</code> for the request above (omitted parameters fall back to defaults):</p>
             <CodeBlock :code="generateOutputExample" lang="json" copy-key="genout" :copied="copied" @copy="copy" />
 
             <h3 class="text-lg font-semibold text-gray-900 mb-3 mt-8">Parameters</h3>
@@ -323,11 +329,11 @@ useHead({
 const toc = [
   { id: 'overview', label: 'Overview' },
   { id: 'feedback', label: 'POST /feedback' },
-  { id: 'generate', label: 'GET /generate' },
+  { id: 'generate', label: 'GET /api/generate' },
   { id: 'dtos', label: 'Data types' }
 ]
 
-// Parameters accepted by the GET /generate pseudo-endpoint. Mirrors RenovateConfig.
+// Parameters accepted by the GET /api/generate endpoint. Mirrors RenovateConfig.
 const generateParams = [
   { param: 'semanticCommits', accepts: 'boolean', def: 'true' },
   { param: 'timezone', accepts: 'IANA timezone, e.g. UTC', def: 'Europe/Berlin' },
@@ -355,12 +361,21 @@ const generateParams = [
   { param: 'grouping.<manager>', accepts: 'boolean — manager is one of: npm, docker, maven, gradle, pip, composer, helm, githubActions, terraform, gomod, cargo, bundler, nuget', def: 'false' }
 ]
 
-const generateUrlExample = 'https://renovate.oglimmer.com/generate'
+// Example URL. The default profile already groups every manager's non-major
+// updates (groupAllNonMajor), so this example turns that off to show the
+// per-manager grouping.npm / grouping.docker toggles (and dot notation) at work.
+const generateUrlExample = 'https://renovate.oglimmer.com/api/generate'
   + '?schedule=weekly'
   + '&prLimitStrategy=conservative'
+  + '&groupAllNonMajor=false'
   + '&grouping.npm=true'
   + '&grouping.docker=true'
 
+const generateCurlExample = `curl 'https://renovate.oglimmer.com/api/generate?schedule=weekly&prLimitStrategy=conservative&groupAllNonMajor=false&grouping.npm=true&grouping.docker=true' \\
+  -o renovate.json`
+
+// NB: this is the verbatim output of the request above — kept in sync with the
+// shared generator (app/lib/generateRenovateConfig.ts).
 const generateOutputExample = `{
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
@@ -382,11 +397,13 @@ const generateOutputExample = `{
   "rangeStrategy": "bump",
   "automergeType": "branch",
   "packageRules": [
-    { "automerge": true, "matchUpdateTypes": ["minor", "patch", "pin", "digest"] },
-    { "matchCurrentVersion": "/^0\\\\./", "automerge": false },
-    { "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true },
-    { "matchManagers": ["npm"], "groupName": "npm dependencies" },
-    { "matchManagers": ["dockerfile", "docker-compose"], "groupName": "Docker dependencies" }
+    { "description": "Group npm dependencies (non-major updates)", "matchManagers": ["npm"], "matchUpdateTypes": ["minor", "patch", "pin", "digest"], "groupName": "npm dependencies" },
+    { "description": "Group Docker dependencies (non-major updates)", "matchManagers": ["dockerfile", "docker-compose"], "matchUpdateTypes": ["minor", "patch", "pin", "digest"], "groupName": "Docker dependencies" },
+    { "description": "Automerge minor, patch, pin, digest updates (low-risk, non-major)", "matchUpdateTypes": ["minor", "patch", "pin", "digest"], "automerge": true },
+    { "description": "Automerge all devDependencies (build/test tooling, not shipped to consumers)", "matchDepTypes": ["devDependencies"], "automerge": true },
+    { "description": "Automerge Maven/Gradle wrapper updates", "matchManagers": ["maven-wrapper", "gradle-wrapper"], "automerge": true },
+    { "description": "Never automerge 0.x releases — semver allows breaking changes before 1.0", "matchCurrentVersion": "/^0\\\\./", "automerge": false },
+    { "description": "Isolate major updates behind Dependency Dashboard approval", "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true }
   ],
   "minimumReleaseAge": "7 days",
   "internalChecksFilter": "strict",
