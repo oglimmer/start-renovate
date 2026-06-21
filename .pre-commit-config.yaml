@@ -40,22 +40,41 @@ repos:
         language: system
         pass_filenames: false
 
-  # Java formatting
+  # Backend (Java) – mirrors CI ci.yml `backend` job
   - repo: local
     hooks:
       - id: spotless-java
-        name: spotless (java)
-        entry: bash -c "cd server && ./mvnw spotless:check"
-        files: ^server/
+        name: spotless check (formatting/lint)
+        entry: bash -c "cd backend && ./mvnw -B spotless:check"
+        files: ^backend/
         language: system
         types_or: [java]
         pass_filenames: false
+      - id: backend-verify
+        name: backend build & test
+        entry: bash -c "cd backend && ./mvnw -B verify"
+        files: ^backend/
+        language: system
+        pass_filenames: false
 
-  # Node (JS/TS) – eslint + prettier via mirrors
+  # Frontend (JS/TS) – mirrors CI ci.yml `frontend` job
   - repo: local
     hooks:
-      - id: eslint
-        name: eslint
-        entry: bash -c "cd frontend && npm run lint && npm run type-check"
+      - id: frontend-lint
+        name: lint (eslint)
+        entry: bash -c "cd frontend && npm run lint"
         files: ^frontend/
         language: system
+        pass_filenames: false
+      - id: frontend-type-check
+        name: type check
+        entry: bash -c "cd frontend && npm run type-check"
+        files: ^frontend/
+        language: system
+        pass_filenames: false
+      - id: frontend-test
+        name: test (vitest)
+        entry: bash -c "cd frontend && npm test"
+        files: ^frontend/
+        language: system
+        pass_filenames: false
