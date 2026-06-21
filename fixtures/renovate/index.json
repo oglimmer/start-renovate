@@ -1,0 +1,10 @@
+[
+  "default-oglimmer",
+  "renovate-defaults",
+  "per-manager-grouping",
+  "automerge-patch",
+  "automerge-all",
+  "pr-limits-conservative",
+  "schedule-outside-business-hours",
+  "min-release-age-3-days"
+]

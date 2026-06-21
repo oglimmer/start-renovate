@@ -3,8 +3,12 @@ package com.oglimmer.start_renovate.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oglimmer.start_renovate.dto.CellState;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -13,56 +17,14 @@ class RenovateConfigAnalyzerTest {
   private final RenovateConfigAnalyzer analyzer = new RenovateConfigAnalyzer();
   private final ObjectMapper mapper = new ObjectMapper();
 
-  /**
-   * The exact JSON the frontend's buildRenovateConfig(defaultRenovateConfig) produces. The analyzer
-   * must reverse-map it back to the original option set — the strongest FE/BE-contract guard.
-   */
-  private static final String DEFAULT_GENERATED =
-      """
-      {
-        "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-        "extends": [
-          "config:recommended",
-          ":enableVulnerabilityAlerts",
-          ":dependencyDashboard",
-          ":semanticCommits",
-          "docker:pinDigests",
-          "helpers:pinGitHubActionDigests",
-          ":pinDevDependencies",
-          "abandonments:recommended"
-        ],
-        "configMigration": true,
-        "timezone": "Europe/Berlin",
-        "prHourlyLimit": 10,
-        "prConcurrentLimit": 20,
-        "rebaseWhen": "behind-base-branch",
-        "rangeStrategy": "bump",
-        "automergeType": "branch",
-        "packageRules": [
-          { "description": "Group each manager's non-major updates into one PR per manager", "matchUpdateTypes": ["minor", "patch", "pin", "digest"], "groupName": "{{manager}} non-major dependencies" },
-          { "description": "Automerge minor, patch, pin, digest updates (low-risk, non-major)", "matchUpdateTypes": ["minor", "patch", "pin", "digest"], "automerge": true },
-          { "description": "Never automerge 0.x releases", "matchCurrentVersion": "/^0\\\\./", "automerge": false },
-          { "description": "Isolate major updates behind Dependency Dashboard approval", "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true }
-        ],
-        "minimumReleaseAge": "7 days",
-        "internalChecksFilter": "strict",
-        "lockFileMaintenance": {
-          "enabled": true,
-          "schedule": ["before 5am on monday"],
-          "automerge": true
-        },
-        "vulnerabilityAlerts": {
-          "minimumReleaseAge": "0 days",
-          "labels": ["security"],
-          "schedule": ["at any time"],
-          "automerge": true
-        }
-      }
-      """;
-
   @Test
   void reverseMapsTheDefaultGeneratedConfig() throws Exception {
-    Map<String, CellState> r = analyzer.analyze(mapper.readTree(DEFAULT_GENERATED));
+    // Loads the SHARED corpus fixture generated from the frontend's
+    // buildRenovateConfig(defaultRenovateConfig) — see
+    // frontend/app/lib/renovateFixtures.spec.ts, which keeps the file in sync with
+    // the generator. This is the strongest FE/BE-contract guard: both inverse
+    // mappings are now exercised against the exact same input bytes.
+    Map<String, CellState> r = analyzer.analyze(loadFixture("default-oglimmer"));
 
     assertCell(r, "semanticCommits", CellState.SET_ON, null);
     assertCell(r, "timezone", CellState.SET_ON, "Europe/Berlin");
@@ -72,7 +34,11 @@ class RenovateConfigAnalyzerTest {
     assertCell(r, "rangeStrategy", CellState.SET_ON, "bump");
     assertCell(r, "automergeType", CellState.SET_ON, "branch");
     assertCell(r, "automergeLevel", CellState.SET_ON, "minor");
-    assertCell(r, "automergeDevDependencies", CellState.SET_OFF, null);
+    // The hardened default sets automergeDevDependencies: true, so the generated
+    // config carries the devDependencies automerge rule. (The earlier hand-copied
+    // snapshot omitted it and wrongly asserted SET_OFF — exactly the drift the
+    // shared fixture eliminates.)
+    assertCell(r, "automergeDevDependencies", CellState.SET_ON, null);
     assertCell(r, "ignoreTests", CellState.SET_OFF, null);
     assertCell(r, "disablePreOneAutomerge", CellState.SET_ON, null);
     assertCell(r, "requireMajorApproval", CellState.SET_ON, null);
@@ -184,10 +150,47 @@ class RenovateConfigAnalyzerTest {
     assertCell(r, "grouping.npm", CellState.SET_OFF, null);
   }
 
+  @Test
+  void reverseMapsThePerManagerGroupingFixture() throws Exception {
+    // Shared corpus fixture: groupAllNonMajor off, with npm/docker/maven/githubActions
+    // grouped per-manager. Exercises the analyzer's manager detection against the
+    // exact rules the frontend emits for that combination.
+    Map<String, CellState> r = analyzer.analyze(loadFixture("per-manager-grouping"));
+
+    assertCell(r, "groupAllNonMajor", CellState.SET_OFF, null);
+    assertCell(r, "grouping.npm", CellState.SET_ON, null);
+    assertCell(r, "grouping.docker", CellState.SET_ON, null);
+    assertCell(r, "grouping.maven", CellState.SET_ON, null);
+    assertCell(r, "grouping.githubActions", CellState.SET_ON, null);
+    assertCell(r, "grouping.gradle", CellState.SET_OFF, null);
+    assertCell(r, "grouping.nuget", CellState.SET_OFF, null);
+  }
+
   private static void assertCell(
       Map<String, CellState> result, String key, String expectedState, String expectedValue) {
     CellState cell = result.get(key);
     assertEquals(expectedState, cell == null ? null : cell.state(), "state for " + key);
     assertEquals(expectedValue, cell == null ? null : cell.value(), "value for " + key);
+  }
+
+  /** Reads a document from the shared cross-language corpus at {@code <repo>/fixtures/renovate}. */
+  private JsonNode loadFixture(String name) throws IOException {
+    return mapper.readTree(fixtureDir().resolve(name + ".json").toFile());
+  }
+
+  /**
+   * Resolves the repo-root {@code fixtures/renovate} dir by walking up from the working directory,
+   * so the test passes whether run from the {@code backend} module or the repository root.
+   */
+  private static Path fixtureDir() {
+    Path p = Path.of("").toAbsolutePath();
+    for (int i = 0; i < 6 && p != null; i++, p = p.getParent()) {
+      Path candidate = p.resolve("fixtures").resolve("renovate");
+      if (Files.isDirectory(candidate)) {
+        return candidate;
+      }
+    }
+    throw new IllegalStateException(
+        "shared fixtures/renovate dir not found from " + Path.of("").toAbsolutePath());
   }
 }
