@@ -99,6 +99,7 @@ public class RenovateConfigAnalyzer {
         "vulnerabilityAlerts.automerge",
         CellState.bool(va != null && va.path("automerge").asBoolean(false)));
 
+    out.put("groupAllNonMajor", groupAllNonMajor(rules));
     for (Map.Entry<String, Set<String>> group : GROUPING.entrySet()) {
       out.put(group.getKey(), CellState.bool(hasGrouping(rules, group.getValue())));
     }
@@ -226,6 +227,25 @@ public class RenovateConfigAnalyzer {
       return CellState.on();
     }
     return CellState.custom(String.join(", ", values));
+  }
+
+  /**
+   * Detects the "fast lane" auto-group rule: a non-major-scoped group whose {@code groupName} uses
+   * the {@code {{manager}}} template and is not pinned to specific managers — the inverse of
+   * {@code buildRenovateConfig}'s {@code groupAllNonMajor} branch.
+   */
+  private CellState groupAllNonMajor(List<JsonNode> rules) {
+    for (JsonNode rule : rules) {
+      JsonNode groupName = rule.get("groupName");
+      if (groupName != null
+          && groupName.isTextual()
+          && groupName.asText().contains("{{manager}}")
+          && rule.get("matchManagers") == null
+          && textSet(rule.get("matchUpdateTypes")).contains("minor")) {
+        return CellState.on();
+      }
+    }
+    return CellState.off();
   }
 
   private boolean hasGrouping(List<JsonNode> rules, Set<String> managers) {

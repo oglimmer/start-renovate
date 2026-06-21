@@ -39,9 +39,10 @@ class RenovateConfigAnalyzerTest {
         "rangeStrategy": "bump",
         "automergeType": "branch",
         "packageRules": [
-          { "automerge": true, "matchUpdateTypes": ["minor", "patch", "pin", "digest"] },
-          { "matchCurrentVersion": "/^0\\\\./", "automerge": false },
-          { "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true }
+          { "description": "Group each manager's non-major updates into one PR per manager", "matchUpdateTypes": ["minor", "patch", "pin", "digest"], "groupName": "{{manager}} non-major dependencies" },
+          { "description": "Automerge minor, patch, pin, digest updates (low-risk, non-major)", "matchUpdateTypes": ["minor", "patch", "pin", "digest"], "automerge": true },
+          { "description": "Never automerge 0.x releases", "matchCurrentVersion": "/^0\\\\./", "automerge": false },
+          { "description": "Isolate major updates behind Dependency Dashboard approval", "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true }
         ],
         "minimumReleaseAge": "7 days",
         "internalChecksFilter": "strict",
@@ -86,7 +87,9 @@ class RenovateConfigAnalyzerTest {
     assertCell(r, "vulnerabilityAlerts.labels", CellState.SET_ON, "security");
     assertCell(r, "vulnerabilityAlerts.scheduleOverride", CellState.SET_ON, null);
     assertCell(r, "vulnerabilityAlerts.automerge", CellState.SET_ON, null);
-    // grouping all off by default
+    // fast-lane auto-group on; per-manager toggles all off (the {{manager}} rule
+    // has no matchManagers, so it must not false-trigger any specific manager).
+    assertCell(r, "groupAllNonMajor", CellState.SET_ON, null);
     assertCell(r, "grouping.npm", CellState.SET_OFF, null);
     assertCell(r, "grouping.docker", CellState.SET_OFF, null);
     assertCell(r, "grouping.nuget", CellState.SET_OFF, null);
@@ -160,6 +163,25 @@ class RenovateConfigAnalyzerTest {
     assertCell(r, "grouping.npm", CellState.SET_ON, null);
     assertCell(r, "grouping.gradle", CellState.SET_ON, null);
     assertCell(r, "grouping.docker", CellState.SET_OFF, null);
+    // manager-pinned group rules must not be read as the {{manager}} auto-group.
+    assertCell(r, "groupAllNonMajor", CellState.SET_OFF, null);
+  }
+
+  @Test
+  void detectsGroupAllNonMajorFromManagerTemplate() throws Exception {
+    String json =
+        """
+        {
+          "packageRules": [
+            { "matchUpdateTypes": ["minor", "patch", "pin", "digest"], "groupName": "{{manager}} non-major dependencies" }
+          ]
+        }
+        """;
+    Map<String, CellState> r = analyzer.analyze(mapper.readTree(json));
+
+    assertCell(r, "groupAllNonMajor", CellState.SET_ON, null);
+    // it is not pinned to any manager, so no per-manager cell should light up.
+    assertCell(r, "grouping.npm", CellState.SET_OFF, null);
   }
 
   private static void assertCell(

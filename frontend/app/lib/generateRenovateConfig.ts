@@ -28,6 +28,10 @@ export interface RenovateConfig {
     scheduleOverride: boolean
     automerge: boolean
   }
+  // "Fast lane" auto-grouping: emit a single {{manager}} template rule that groups
+  // every detected manager's non-major updates into one PR per manager — no need to
+  // enumerate managers below. Supersedes the per-manager `grouping` toggles when on.
+  groupAllNonMajor: boolean
   grouping: {
     npm: boolean
     docker: boolean
@@ -107,6 +111,10 @@ export const defaultRenovateConfig: RenovateConfig = {
     scheduleOverride: true,
     automerge: true
   },
+  // On by default in the hardened profile: one {{manager}} group rule collapses
+  // every manager's minor/patch churn into a single automergeable PR per manager,
+  // matching the low-noise posture. Majors stay individual under requireMajorApproval.
+  groupAllNonMajor: true,
   grouping: {
     npm: false,
     docker: false,
@@ -161,6 +169,7 @@ export const renovateDefaultsConfig: RenovateConfig = {
     scheduleOverride: false,
     automerge: false
   },
+  groupAllNonMajor: false,
   grouping: {
     npm: false,
     docker: false,
@@ -284,6 +293,70 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
     configObject.automergeType = config.automergeType
   }
 
+  // === packageRules are emitted in a deliberate top-to-bottom order so the file
+  // reads like a lesson: (1) WHO gets grouped, (2) WHAT automerges, (3) automerge
+  // SAFETY blocks, (4) the major slow-lane gate. Renovate merges EVERY matching
+  // rule (a later rule wins only on a shared key), so order is significant solely
+  // between rules touching the same key — the 0.x `automerge:false` block (3) must
+  // stay AFTER the automerge-enable rule (2). Grouping, automerge and the major
+  // gate use different keys, so their relative order is purely for readability.
+  // Each rule carries a `description`, which Renovate surfaces in the PR/branch.
+
+  // (1) Fast lane — group non-major updates, one PR per manager. Scoped to
+  // non-major so a major never inherits a groupName and folds back into the group
+  // PR; it must reach the slow-lane gate (4) on its own instead. Grouping is
+  // orthogonal to automerge, so a grouped non-major still automerges via rule (2).
+  const nonMajorUpdateTypes = ['minor', 'patch', 'pin', 'digest']
+
+  if (config.groupAllNonMajor) {
+    // The {{manager}} template expands to a separate group per manager Renovate
+    // detects (npm, maven, docker, …) with no enumeration, so a monorepo's
+    // frontend (npm) and backend (maven) deps stay in distinct PRs. Supersedes
+    // the explicit per-manager toggles.
+    configObject.packageRules = configObject.packageRules || []
+    configObject.packageRules.push({
+      description: "Group each manager's non-major updates into one PR per manager",
+      matchUpdateTypes: nonMajorUpdateTypes,
+      groupName: '{{manager}} non-major dependencies'
+    })
+  } else {
+    const groupingMap: Record<string, { managers: string[]; groupName: string }> = {
+      npm: { managers: ['npm'], groupName: 'npm dependencies' },
+      docker: { managers: ['dockerfile', 'docker-compose'], groupName: 'Docker dependencies' },
+      maven: { managers: ['maven'], groupName: 'Maven dependencies' },
+      gradle: { managers: ['gradle', 'gradle-wrapper'], groupName: 'Gradle dependencies' },
+      pip: { managers: ['pip_requirements', 'pip_setup', 'pipenv'], groupName: 'pip dependencies' },
+      composer: { managers: ['composer'], groupName: 'Composer dependencies' },
+      helm: { managers: ['helmv3', 'helmfile'], groupName: 'Helm dependencies' },
+      githubActions: { managers: ['github-actions'], groupName: 'GitHub Actions' },
+      terraform: { managers: ['terraform', 'terragrunt'], groupName: 'Terraform dependencies' },
+      gomod: { managers: ['gomod'], groupName: 'Go dependencies' },
+      cargo: { managers: ['cargo'], groupName: 'Cargo dependencies' },
+      bundler: { managers: ['bundler'], groupName: 'Bundler dependencies' },
+      nuget: { managers: ['nuget'], groupName: 'NuGet dependencies' }
+    }
+
+    const enabledGroups = Object.entries(config.grouping)
+      .filter(([_, enabled]) => enabled)
+      .map(([key, _]) => key)
+
+    if (enabledGroups.length > 0) {
+      configObject.packageRules = configObject.packageRules || []
+
+      enabledGroups.forEach(groupKey => {
+        const group = groupingMap[groupKey as keyof typeof groupingMap]
+        if (group) {
+          configObject.packageRules.push({
+            description: `Group ${group.groupName} (non-major updates)`,
+            matchManagers: group.managers,
+            matchUpdateTypes: nonMajorUpdateTypes,
+            groupName: group.groupName
+          })
+        }
+      })
+    }
+  }
+
   // NOTE: we intentionally do NOT emit `platformAutomerge`. It delegates merging
   // to the platform's native PR auto-merge, which always goes through a pull
   // request and leaves a merge/squash commit + PR trail. That directly conflicts
@@ -297,42 +370,43 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
     configObject.packageRules = configObject.packageRules || []
 
     if (config.automergeLevel !== 'disabled') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rule: Record<string, any> = {
+      // (2) Fast lane — automerge low-risk updates. Always include 'pin' and
+      // 'digest' alongside the chosen level: these are what the pinning presets
+      // (docker:pinDigests, helpers:pinGitHubActionDigests, :pinDevDependencies)
+      // generate, and automerging them keeps those bumps on the clean
+      // branch-automerge path instead of opening human-merged PRs. The 0.x safety
+      // block (3) below still applies and wins via later-rule precedence.
+      const matchUpdateTypes = config.automergeLevel === 'patch'
+        ? ['patch', 'pin', 'digest']
+        : ['minor', 'patch', 'pin', 'digest']
+
+      configObject.packageRules.push({
+        description: `Automerge ${matchUpdateTypes.join(', ')} updates (low-risk, non-major)`,
+        matchUpdateTypes,
         automerge: true
-      }
-
-      // Always include the low-risk 'pin' and 'digest' update types alongside
-      // the chosen level. These are what the pinning presets (docker:pinDigests,
-      // helpers:pinGitHubActionDigests, :pinDevDependencies) generate; automerging
-      // them keeps those bumps on the clean branch-automerge path instead of
-      // opening human-merged PRs (which would leave merge traces in git history).
-      // The guide endorses automerging pin + digest as low-risk. The 0.x safety
-      // override below still applies and wins via later-rule precedence.
-      if (config.automergeLevel === 'patch') {
-        rule.matchUpdateTypes = ['patch', 'pin', 'digest']
-      } else if (config.automergeLevel === 'minor') {
-        rule.matchUpdateTypes = ['minor', 'patch', 'pin', 'digest']
-      }
-
-      configObject.packageRules.push(rule)
+      })
     }
 
     if (config.automergeDevDependencies) {
       configObject.packageRules.push({
+        description: 'Automerge all devDependencies (build/test tooling, not shipped to consumers)',
         matchDepTypes: ['devDependencies'],
         automerge: true
       })
       configObject.packageRules.push({
+        description: 'Automerge Maven/Gradle wrapper updates',
         matchManagers: ['maven-wrapper', 'gradle-wrapper'],
         automerge: true
       })
     }
   }
 
+  // (3) Safety block — must stay AFTER the automerge-enable rule (2): it shares the
+  // `automerge` key, and later-rule-wins is exactly what flips these back to false.
   if (config.disablePreOneAutomerge && config.automergeLevel !== 'disabled') {
     configObject.packageRules = configObject.packageRules || []
     configObject.packageRules.push({
+      description: 'Never automerge 0.x releases — semver allows breaking changes before 1.0',
       matchCurrentVersion: '/^0\\./',
       automerge: false
     })
@@ -342,13 +416,14 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
     configObject.ignoreTests = true
   }
 
-  // Require explicit Dependency Dashboard approval before any major-update PR is
-  // raised. Independent of automerge (majors aren't automerged); this is purely
-  // noise/control. Kept as its own rule so ordering with the automerge rules
-  // above is irrelevant.
+  // (4) Slow lane — keep major updates off the automerge path and out of the PR
+  // queue until a human ticks the box on the Dependency Dashboard. Emitted last so
+  // the file reads who-is-grouped → what-automerges → safety → manual gate; it
+  // shares no key with the rules above, so the position is purely for readability.
   if (config.requireMajorApproval) {
     configObject.packageRules = configObject.packageRules || []
     configObject.packageRules.push({
+      description: 'Isolate major updates behind Dependency Dashboard approval',
       matchUpdateTypes: ['major'],
       dependencyDashboardApproval: true
     })
@@ -426,40 +501,6 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
   // in `extends` already turns the feature on).
   if (Object.keys(vulnerabilityAlerts).length > 0) {
     configObject.vulnerabilityAlerts = vulnerabilityAlerts
-  }
-
-  const groupingMap: Record<string, { managers: string[]; groupName: string }> = {
-    npm: { managers: ['npm'], groupName: 'npm dependencies' },
-    docker: { managers: ['dockerfile', 'docker-compose'], groupName: 'Docker dependencies' },
-    maven: { managers: ['maven'], groupName: 'Maven dependencies' },
-    gradle: { managers: ['gradle', 'gradle-wrapper'], groupName: 'Gradle dependencies' },
-    pip: { managers: ['pip_requirements', 'pip_setup', 'pipenv'], groupName: 'pip dependencies' },
-    composer: { managers: ['composer'], groupName: 'Composer dependencies' },
-    helm: { managers: ['helmv3', 'helmfile'], groupName: 'Helm dependencies' },
-    githubActions: { managers: ['github-actions'], groupName: 'GitHub Actions' },
-    terraform: { managers: ['terraform', 'terragrunt'], groupName: 'Terraform dependencies' },
-    gomod: { managers: ['gomod'], groupName: 'Go dependencies' },
-    cargo: { managers: ['cargo'], groupName: 'Cargo dependencies' },
-    bundler: { managers: ['bundler'], groupName: 'Bundler dependencies' },
-    nuget: { managers: ['nuget'], groupName: 'NuGet dependencies' }
-  }
-
-  const enabledGroups = Object.entries(config.grouping)
-    .filter(([_, enabled]) => enabled)
-    .map(([key, _]) => key)
-
-  if (enabledGroups.length > 0) {
-    configObject.packageRules = configObject.packageRules || []
-
-    enabledGroups.forEach(groupKey => {
-      const group = groupingMap[groupKey as keyof typeof groupingMap]
-      if (group) {
-        configObject.packageRules.push({
-          matchManagers: group.managers,
-          groupName: group.groupName
-        })
-      }
-    })
   }
 
   return configObject

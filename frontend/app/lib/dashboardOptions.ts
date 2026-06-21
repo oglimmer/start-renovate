@@ -67,6 +67,7 @@ export const dashboardOptionGroups: DashboardOptionGroup[] = [
   {
     group: 'Grouping',
     options: [
+      { id: 'groupAllNonMajor', label: 'Auto-group all managers (non-major)' },
       { id: 'grouping.npm', label: 'npm' },
       { id: 'grouping.docker', label: 'Docker' },
       { id: 'grouping.maven', label: 'Maven' },

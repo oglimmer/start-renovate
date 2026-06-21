@@ -1202,12 +1202,33 @@
               <div class="mb-4">
                 <h3 class="text-lg font-medium text-gray-900 mb-2">Group Updates by Package Manager</h3>
                 <p class="text-sm text-gray-600">
-                  Group all updates from the same package manager into a single PR to reduce noise.
-                  Select which package managers you want to group.
+                  Group non-major updates from the same package manager into a single PR to reduce noise.
+                  Majors are never grouped — they stay individual under major-update approval. Either
+                  auto-group every manager at once, or pick specific managers below.
                 </p>
               </div>
 
-              <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <!-- Fast lane: auto-group every manager via the {{manager}} template -->
+              <div class="flex items-start mb-4 p-3 bg-indigo-50 rounded-lg">
+                <input
+                  id="group-all-non-major"
+                  v-model="config.groupAllNonMajor"
+                  type="checkbox"
+                  class="h-4 w-4 mt-0.5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                >
+                <label for="group-all-non-major" class="ml-2 text-sm text-gray-900 cursor-pointer">
+                  <span class="font-medium">Auto-group every manager's non-major updates</span>
+                  <span class="block text-gray-600 mt-1">
+                    Emits a single <code v-pre class="bg-white px-1 rounded">{{manager}}</code> rule that groups
+                    minor/patch updates into one PR per manager — across every manager Renovate detects, no need to
+                    pick them below. Supersedes the per-manager selection.
+                  </span>
+                </label>
+              </div>
+
+              <div
+                class="grid grid-cols-2 md:grid-cols-3 gap-3"
+                :class="{ 'opacity-50 pointer-events-none': config.groupAllNonMajor }">
                 <!-- npm -->
                 <div class="flex items-center">
                   <input
@@ -1380,12 +1401,14 @@
 
               <div class="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded">
                 <p class="mb-2">
-                  <strong class="text-gray-700">What it does:</strong> Groups all updates from each selected package manager
-                  into a single PR instead of creating separate PRs for each dependency update.
+                  <strong class="text-gray-700">What it does:</strong> Groups non-major (minor/patch/pin/digest) updates
+                  from each manager into a single PR instead of one PR per dependency. Major updates are excluded so they
+                  stay individual and gated behind major-update approval.
                 </p>
                 <p>
                   <strong class="text-gray-700">Why you want this:</strong> Reduces PR noise significantly. For example,
-                  instead of 15 separate PRs for npm updates, you get 1 grouped PR titled "All npm updates".
+                  instead of 15 separate PRs for npm updates, you get 1 grouped PR — while a breaking major still arrives
+                  on its own for a deliberate review.
                 </p>
               </div>
             </div>

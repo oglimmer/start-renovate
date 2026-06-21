@@ -42,6 +42,7 @@ function makeConfig(overrides: Partial<RenovateConfig> = {}): RenovateConfig {
       scheduleOverride: true,
       automerge: true
     },
+    groupAllNonMajor: false,
     grouping: {
       npm: false,
       docker: false,
@@ -238,6 +239,91 @@ describe('buildRenovateConfig — safe-by-default settings', () => {
   })
 })
 
+describe('buildRenovateConfig — fast/slow lane grouping', () => {
+  const isGroupRule = (r: { groupName?: string }) => typeof r.groupName === 'string'
+
+  it('groupAllNonMajor emits a single {{manager}} rule scoped to non-major update types', () => {
+    const out = buildRenovateConfig(makeConfig({ groupAllNonMajor: true }))
+    const groupRules = (out.packageRules ?? []).filter(isGroupRule)
+    expect(groupRules).toContainEqual({
+      description: "Group each manager's non-major updates into one PR per manager",
+      matchUpdateTypes: ['minor', 'patch', 'pin', 'digest'],
+      groupName: '{{manager}} non-major dependencies'
+    })
+    // No manager-pinned group rules when auto-grouping is on.
+    expect(groupRules.every((r: { matchManagers?: string[] }) => r.matchManagers === undefined)).toBe(true)
+  })
+
+  it('groupAllNonMajor supersedes the per-manager toggles (those rules are not emitted)', () => {
+    const out = buildRenovateConfig(makeConfig({
+      groupAllNonMajor: true,
+      grouping: { npm: true, docker: true, maven: false, gradle: false, pip: false, composer: false, helm: false, githubActions: false, terraform: false, gomod: false, cargo: false, bundler: false, nuget: false }
+    }))
+    const groupRules = (out.packageRules ?? []).filter(isGroupRule)
+    expect(groupRules).toHaveLength(1)
+    expect(groupRules[0].groupName).toBe('{{manager}} non-major dependencies')
+  })
+
+  it('per-manager grouping is scoped to non-major so majors never join a group', () => {
+    const out = buildRenovateConfig(makeConfig({
+      groupAllNonMajor: false,
+      grouping: { npm: true, docker: false, maven: false, gradle: false, pip: false, composer: false, helm: false, githubActions: false, terraform: false, gomod: false, cargo: false, bundler: false, nuget: false }
+    }))
+    const groupRules = (out.packageRules ?? []).filter(isGroupRule)
+    expect(groupRules).toContainEqual({
+      description: 'Group npm dependencies (non-major updates)',
+      matchManagers: ['npm'],
+      matchUpdateTypes: ['minor', 'patch', 'pin', 'digest'],
+      groupName: 'npm dependencies'
+    })
+    // Every group rule excludes major.
+    for (const r of groupRules) {
+      expect((r as { matchUpdateTypes?: string[] }).matchUpdateTypes).not.toContain('major')
+    }
+  })
+
+  it('defaults groupAllNonMajor on in the oglimmer preset and off in renovate-defaults', () => {
+    expect(defaultRenovateConfig.groupAllNonMajor).toBe(true)
+    expect(renovateDefaultsConfig.groupAllNonMajor).toBe(false)
+  })
+
+  it('emits packageRules top-to-bottom: group → automerge → 0.x safety block → major gate', () => {
+    const rules = buildRenovateConfig(defaultRenovateConfig).packageRules ?? []
+    const idx = (pred: (r: Record<string, unknown>) => boolean) => rules.findIndex(pred)
+
+    const group = idx((r) => typeof r.groupName === 'string')
+    const automerge = idx((r) => Array.isArray(r.matchUpdateTypes)
+      && (r.matchUpdateTypes as string[]).includes('minor') && r.automerge === true)
+    const safety = idx((r) => r.matchCurrentVersion === '/^0\\./')
+    const major = idx((r) => Array.isArray(r.matchUpdateTypes)
+      && (r.matchUpdateTypes as string[]).includes('major'))
+
+    expect(group).toBeGreaterThanOrEqual(0)
+    expect(group).toBeLessThan(automerge)
+    // the 0.x block shares the `automerge` key, so it MUST follow the enable rule.
+    expect(automerge).toBeLessThan(safety)
+    expect(safety).toBeLessThan(major)
+    // major gate is the final rule.
+    expect(major).toBe(rules.length - 1)
+  })
+
+  it('gives every emitted packageRule a description (the file should teach, not just configure)', () => {
+    for (const cfg of [defaultRenovateConfig, makeConfig({ groupAllNonMajor: false, grouping: { ...makeConfig().grouping, npm: true, docker: true } })]) {
+      const rules = buildRenovateConfig(cfg).packageRules ?? []
+      expect(rules.length).toBeGreaterThan(0)
+      for (const rule of rules) {
+        expect(typeof rule.description).toBe('string')
+        expect((rule.description as string).length).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('is reachable through the query-param API', () => {
+    expect(configFromQuery({ groupAllNonMajor: 'false' }).groupAllNonMajor).toBe(false)
+    expect(configFromQuery({}).groupAllNonMajor).toBe(true)
+  })
+})
+
 describe('configPresets — selectable starting points', () => {
   it('lists renovate-defaults first (it is the form default) followed by oglimmer', () => {
     expect(configPresets.map(p => p.id)).toEqual(['renovate-defaults', 'oglimmer'])
@@ -256,7 +342,11 @@ describe('configPresets — selectable starting points', () => {
   it('automerges all dev dependencies in the oglimmer preset by default', () => {
     expect(defaultRenovateConfig.automergeDevDependencies).toBe(true)
     const rules = buildRenovateConfig(defaultRenovateConfig).packageRules ?? []
-    expect(rules).toContainEqual({ matchDepTypes: ['devDependencies'], automerge: true })
+    expect(rules).toContainEqual({
+      description: 'Automerge all devDependencies (build/test tooling, not shipped to consumers)',
+      matchDepTypes: ['devDependencies'],
+      automerge: true
+    })
   })
 
   it('maps the renovate-defaults preset to the neutral baseline', () => {
