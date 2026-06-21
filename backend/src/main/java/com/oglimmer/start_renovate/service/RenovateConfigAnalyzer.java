@@ -231,8 +231,8 @@ public class RenovateConfigAnalyzer {
 
   /**
    * Detects the "fast lane" auto-group rule: a non-major-scoped group whose {@code groupName} uses
-   * the {@code {{manager}}} template and is not pinned to specific managers — the inverse of
-   * {@code buildRenovateConfig}'s {@code groupAllNonMajor} branch.
+   * the {@code {{manager}}} template and is not pinned to specific managers — the inverse of {@code
+   * buildRenovateConfig}'s {@code groupAllNonMajor} branch.
    */
   private CellState groupAllNonMajor(List<JsonNode> rules) {
     for (JsonNode rule : rules) {
