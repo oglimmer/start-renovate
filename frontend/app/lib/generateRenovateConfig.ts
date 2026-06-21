@@ -389,14 +389,17 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
     }
   }
 
-  // Always emit a vulnerabilityAlerts block with minimumReleaseAge: "0 days".
-  // Defense in depth: even if no global minimumReleaseAge is configured today,
-  // a later manual edit (or a future generator option) that adds one must not
-  // silently delay security patches. `isVulnerabilityAlert` is NOT a valid
-  // packageRules matcher and is silently ignored, so the top-level
-  // vulnerabilityAlerts object is the only correct place for this override.
-  configObject.vulnerabilityAlerts = {
-    minimumReleaseAge: '0 days'
+  // Only override vulnerabilityAlerts.minimumReleaseAge when a global release-age
+  // delay is actually configured. Renovate's global minimumReleaseAge otherwise
+  // applies to security updates too, so without "0 days" here those fixes would
+  // wait out the same delay — the top-level vulnerabilityAlerts object is the only
+  // correct place for the override (`isVulnerabilityAlert` is NOT a valid
+  // packageRules matcher and is silently ignored). When no global delay is set,
+  // "0 days" just restates Renovate's own default, so we omit it to avoid noise.
+  const vulnerabilityAlerts: Record<string, unknown> = {}
+
+  if (config.minimumReleaseAge !== 'never') {
+    vulnerabilityAlerts.minimumReleaseAge = '0 days'
   }
 
   if (config.vulnerabilityAlerts.labels) {
@@ -406,16 +409,23 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
       .filter(label => label.length > 0)
 
     if (labelsArray.length > 0) {
-      configObject.vulnerabilityAlerts.labels = labelsArray
+      vulnerabilityAlerts.labels = labelsArray
     }
   }
 
   if (config.vulnerabilityAlerts.scheduleOverride) {
-    configObject.vulnerabilityAlerts.schedule = ['at any time']
+    vulnerabilityAlerts.schedule = ['at any time']
   }
 
   if (config.vulnerabilityAlerts.automerge) {
-    configObject.vulnerabilityAlerts.automerge = true
+    vulnerabilityAlerts.automerge = true
+  }
+
+  // Only attach the block if it carries at least one setting — otherwise an empty
+  // `"vulnerabilityAlerts": {}` would just be noise (`:enableVulnerabilityAlerts`
+  // in `extends` already turns the feature on).
+  if (Object.keys(vulnerabilityAlerts).length > 0) {
+    configObject.vulnerabilityAlerts = vulnerabilityAlerts
   }
 
   const groupingMap: Record<string, { managers: string[]; groupName: string }> = {

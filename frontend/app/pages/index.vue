@@ -915,7 +915,7 @@
                   or breaking changes. Lets early adopters discover issues first. Particularly valuable for production dependencies.
                 </p>
                 <p class="text-xs text-gray-600">
-                  <strong>Security Best Practice:</strong> This configuration will automatically include a rule to bypass the delay for vulnerability alerts, ensuring critical security patches are applied immediately.
+                  <strong>Security Best Practice:</strong> When a delay is set, a <code class="bg-white px-1 rounded">vulnerabilityAlerts.minimumReleaseAge: "0 days"</code> override is added automatically to bypass the delay for vulnerability alerts, ensuring critical security patches are applied immediately. (With "No Delay" there's nothing to bypass, so it's omitted.)
                 </p>
                 <p class="text-xs text-gray-600 mt-1">
                   <strong>Less churn:</strong> When a delay is set, <code class="bg-white px-1 rounded">internalChecksFilter: "strict"</code> is added automatically so Renovate doesn't even raise a branch/PR until the version clears the waiting period — instead of parking a pending PR for days.

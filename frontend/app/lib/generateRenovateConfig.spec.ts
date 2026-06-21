@@ -69,16 +69,16 @@ function makeConfig(overrides: Partial<RenovateConfig> = {}): RenovateConfig {
 }
 
 describe('buildRenovateConfig — vulnerability alert release-age override', () => {
-  it('emits vulnerabilityAlerts.minimumReleaseAge: "0 days" by default (defense in depth)', () => {
+  it('emits vulnerabilityAlerts.minimumReleaseAge: "0 days" by default (a global delay is configured)', () => {
     const out = buildRenovateConfig(makeConfig())
     expect(out.vulnerabilityAlerts).toBeDefined()
     expect(out.vulnerabilityAlerts.minimumReleaseAge).toBe('0 days')
   })
 
-  it('still emits the override when global minimumReleaseAge is "never" — protects against later manual edits', () => {
+  it('omits the override when global minimumReleaseAge is "never" — there is no delay to cancel', () => {
     const out = buildRenovateConfig(makeConfig({ minimumReleaseAge: 'never' }))
     expect(out.minimumReleaseAge).toBeUndefined()
-    expect(out.vulnerabilityAlerts.minimumReleaseAge).toBe('0 days')
+    expect(out.vulnerabilityAlerts.minimumReleaseAge).toBeUndefined()
   })
 
   it('emits both global "7 days" and vulnerabilityAlerts "0 days" when a global delay is configured', () => {
@@ -102,7 +102,7 @@ describe('buildRenovateConfig — vulnerability alert release-age override', () 
     expect(out.vulnerabilityAlerts.automerge).toBe(true)
   })
 
-  it('keeps the override when all vulnerabilityAlerts UI options are off', () => {
+  it('keeps the override (global delay set) when all vulnerabilityAlerts UI options are off', () => {
     const out = buildRenovateConfig(makeConfig({
       minimumReleaseAge: '7-days',
       vulnerabilityAlerts: {
@@ -293,6 +293,9 @@ describe('configPresets — selectable starting points', () => {
     expect(out.extends).not.toContain('abandonments:recommended')
     expect(out.packageRules).toBeUndefined()
     expect(out.minimumReleaseAge).toBeUndefined()
+    // No global delay and no vuln-alert opinions → the whole block is omitted
+    // (`:enableVulnerabilityAlerts` in extends already enables the feature).
+    expect(out.vulnerabilityAlerts).toBeUndefined()
     expect(out.internalChecksFilter).toBeUndefined()
     expect(out.lockFileMaintenance).toBeUndefined()
     expect(out.automergeType).toBeUndefined()
