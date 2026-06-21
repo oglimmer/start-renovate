@@ -183,11 +183,9 @@
                 v-model="config.schedule"
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
               >
-                <option value="at-any-time">At Any Time - Default</option>
-                <option value="weekly">Once per Week (Monday before 5am)</option>
-                <option value="monthly">Once per Month (First day before 5am)</option>
-                <option value="weekends">Weekends Only</option>
-                <option value="outside-business-hours">Outside Business Hours (Evenings + Weekends)</option>
+                <option v-for="opt in scheduleOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </option>
               </select>
               <div class="mt-3 text-sm text-gray-600">
                 <p class="mb-2">
@@ -215,67 +213,7 @@
                 Control how many PRs Renovate creates to avoid overwhelming your team and CI resources.
               </p>
 
-              <div class="space-y-3">
-                <!-- Default Option -->
-                <div class="flex items-start">
-                  <input
-                    id="pr-default"
-                    v-model="config.prLimitStrategy"
-                    type="radio"
-                    value="default"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="pr-default" class="font-medium text-gray-900 cursor-pointer">
-                      Balanced
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Renovate's default settings: Up to 2 PRs per hour, max 10 open PRs at once.
-                      Good for most teams with regular review capacity.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Conservative Option -->
-                <div class="flex items-start">
-                  <input
-                    id="pr-conservative"
-                    v-model="config.prLimitStrategy"
-                    type="radio"
-                    value="conservative"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="pr-conservative" class="font-medium text-gray-900 cursor-pointer">
-                      Minimal Noise
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Conservative limits: 1 PR per hour, max 3 open PRs.
-                      Perfect for small teams or projects with limited CI resources.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Active Option -->
-                <div class="flex items-start">
-                  <input
-                    id="pr-active"
-                    v-model="config.prLimitStrategy"
-                    type="radio"
-                    value="active"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="pr-active" class="font-medium text-gray-900 cursor-pointer">
-                      Fast Updates
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Aggressive limits: 10 PRs per hour, max 20 open PRs.
-                      For teams that can quickly review and merge updates, or have robust CI pipelines.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <RadioCardGroup v-model="config.prLimitStrategy" name="pr" :options="prLimitOptions" />
 
               <div class="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded">
                 <p class="mb-2">
@@ -301,85 +239,7 @@
                 Control when Renovate rebases its branches to keep them up-to-date with your base branch.
               </p>
 
-              <div class="space-y-3">
-                <!-- Auto Option -->
-                <div class="flex items-start">
-                  <input
-                    id="rebase-auto"
-                    v-model="config.rebaseWhen"
-                    type="radio"
-                    value="auto"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="rebase-auto" class="font-medium text-gray-900 cursor-pointer">
-                      Smart
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Renovate's default: Auto-detects the best strategy. Keeps branches up-to-date if automerge is enabled or your repo requires it.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Conflicted Option -->
-                <div class="flex items-start">
-                  <input
-                    id="rebase-conflicted"
-                    v-model="config.rebaseWhen"
-                    type="radio"
-                    value="conflicted"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="rebase-conflicted" class="font-medium text-gray-900 cursor-pointer">
-                      Only When Conflicted
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Rebase only when merge conflicts occur. Reduces CI load if you have many concurrent PRs.
-                      Good for busy repositories.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Behind Base Option -->
-                <div class="flex items-start">
-                  <input
-                    id="rebase-behind"
-                    v-model="config.rebaseWhen"
-                    type="radio"
-                    value="behind-base-branch"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="rebase-behind" class="font-medium text-gray-900 cursor-pointer">
-                      Always Keep Up-to-Date
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Rebase whenever the branch is behind base by 1+ commits. Ensures PRs are always current,
-                      but increases CI runs.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Never Option -->
-                <div class="flex items-start">
-                  <input
-                    id="rebase-never"
-                    v-model="config.rebaseWhen"
-                    type="radio"
-                    value="never"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="rebase-never" class="font-medium text-gray-900 cursor-pointer">
-                      Manual Only
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Never automatically rebase. You'll need to manually trigger rebases. Not recommended for most use cases.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <RadioCardGroup v-model="config.rebaseWhen" name="rebase" :options="rebaseOptions" />
 
               <div class="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded">
                 <p class="mb-2">
@@ -404,106 +264,7 @@
                 Control how Renovate updates version ranges in your package files (e.g., ^1.0.0 vs 1.0.0).
               </p>
 
-              <div class="space-y-3">
-                <!-- Auto Option -->
-                <div class="flex items-start">
-                  <input
-                    id="range-auto"
-                    v-model="config.rangeStrategy"
-                    type="radio"
-                    value="auto"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="range-auto" class="font-medium text-gray-900 cursor-pointer">
-                      Smart
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Let Renovate decide the best strategy based on your project type and dependencies.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Replace Option -->
-                <div class="flex items-start">
-                  <input
-                    id="range-replace"
-                    v-model="config.rangeStrategy"
-                    type="radio"
-                    value="replace"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="range-replace" class="font-medium text-gray-900 cursor-pointer">
-                      Replace When Needed
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Only update ranges when new version falls outside. Example: <code class="bg-gray-100 px-1 rounded">^1.0.0</code> → <code class="bg-gray-100 px-1 rounded">^2.0.0</code>.
-                      Conservative approach.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Bump Option -->
-                <div class="flex items-start">
-                  <input
-                    id="range-bump"
-                    v-model="config.rangeStrategy"
-                    type="radio"
-                    value="bump"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="range-bump" class="font-medium text-gray-900 cursor-pointer">
-                      Always Bump Range
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Explicitly update ranges for every change. Example: <code class="bg-gray-100 px-1 rounded">^1.0.0</code> → <code class="bg-gray-100 px-1 rounded">^1.0.1</code>.
-                      Makes all updates visible in package.json.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Update Lockfile Option -->
-                <div class="flex items-start">
-                  <input
-                    id="range-lockfile"
-                    v-model="config.rangeStrategy"
-                    type="radio"
-                    value="update-lockfile"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="range-lockfile" class="font-medium text-gray-900 cursor-pointer">
-                      Lockfile Only
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Update lockfiles without changing package.json ranges. Ranges stay as-is, only resolved versions change.
-                      Good for keeping stable ranges.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Pin Option -->
-                <div class="flex items-start">
-                  <input
-                    id="range-pin"
-                    v-model="config.rangeStrategy"
-                    type="radio"
-                    value="pin"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="range-pin" class="font-medium text-gray-900 cursor-pointer">
-                      Pin to Exact Versions
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Remove all ranges and use exact versions. Example: <code class="bg-gray-100 px-1 rounded">^1.0.0</code> → <code class="bg-gray-100 px-1 rounded">1.0.1</code>.
-                      Maximum control and reproducibility.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <RadioCardGroup v-model="config.rangeStrategy" name="range" :options="rangeOptions" />
 
               <div class="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded">
                 <p class="mb-2">
@@ -528,67 +289,7 @@
                 Choose how Renovate should automerge updates when automerge is enabled (requires separate automerge configuration).
               </p>
 
-              <div class="space-y-3">
-                <!-- PR Option -->
-                <div class="flex items-start">
-                  <input
-                    id="automerge-pr"
-                    v-model="config.automergeType"
-                    type="radio"
-                    value="pr"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="automerge-pr" class="font-medium text-gray-900 cursor-pointer">
-                      Pull Request
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Create PRs and automerge them after tests pass. Full visibility with notifications.
-                      Works with all branch protection rules.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Branch Option -->
-                <div class="flex items-start">
-                  <input
-                    id="automerge-branch"
-                    v-model="config.automergeType"
-                    type="radio"
-                    value="branch"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="automerge-branch" class="font-medium text-gray-900 cursor-pointer">
-                      Silent Branch Merge
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Merge directly to base branch without creating PRs. Silent updates with only commits visible.
-                      Creates PR only if tests fail. Requires branch protection to allow Renovate pushes.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- PR Comment Option -->
-                <div class="flex items-start">
-                  <input
-                    id="automerge-comment"
-                    v-model="config.automergeType"
-                    type="radio"
-                    value="pr-comment"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="automerge-comment" class="font-medium text-gray-900 cursor-pointer">
-                      External Merge Bot
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Use with external merge bots like bors-ng. Renovate adds a comment to trigger your bot.
-                      Only use if you have a merge bot configured.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <RadioCardGroup v-model="config.automergeType" name="automerge-type" :options="automergeTypeOptions" />
 
               <div class="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded">
                 <p class="mb-2">
@@ -613,87 +314,7 @@
                 Automatically merge dependency updates that pass tests. Choose what types of updates to automerge.
               </p>
 
-              <div class="space-y-3 mb-4">
-                <!-- Disabled Option -->
-                <div class="flex items-start">
-                  <input
-                    id="automerge-disabled"
-                    v-model="config.automergeLevel"
-                    type="radio"
-                    value="disabled"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="automerge-disabled" class="font-medium text-gray-900 cursor-pointer">
-                      Disabled
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      No automatic merging. All updates require manual review and approval.
-                      Safest option with full control.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Patch Only Option -->
-                <div class="flex items-start">
-                  <input
-                    id="automerge-patch"
-                    v-model="config.automergeLevel"
-                    type="radio"
-                    value="patch"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="automerge-patch" class="font-medium text-gray-900 cursor-pointer">
-                      Patch Updates Only
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Automerge only patch updates (e.g., 1.2.3 → 1.2.4). Most conservative automated approach.
-                      Good for risk-averse teams with good test coverage.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Patch + Minor Option -->
-                <div class="flex items-start">
-                  <input
-                    id="automerge-minor"
-                    v-model="config.automergeLevel"
-                    type="radio"
-                    value="minor"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="automerge-minor" class="font-medium text-gray-900 cursor-pointer">
-                      Patch + Minor Updates
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Automerge patch and minor updates (e.g., 1.2.3 → 1.3.0). Most common recommendation.
-                      Major updates still require manual review.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- All Updates Option -->
-                <div class="flex items-start">
-                  <input
-                    id="automerge-all"
-                    v-model="config.automergeLevel"
-                    type="radio"
-                    value="all"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="automerge-all" class="font-medium text-gray-900 cursor-pointer">
-                      All Updates
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Automerge all updates including major versions. Aggressive approach requiring excellent test coverage.
-                      Only use if you have comprehensive automated tests.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <RadioCardGroup v-model="config.automergeLevel" name="automerge-level" :options="automergeLevelOptions" class="mb-4" />
 
               <!-- Dev Dependencies Checkbox -->
               <div v-if="config.automergeLevel !== 'all'" class="border-t border-gray-200 pt-4">
@@ -823,87 +444,7 @@
                 Helps avoid cutting-edge releases that might be unstable.
               </p>
 
-              <div class="space-y-3">
-                <!-- Never Option -->
-                <div class="flex items-start">
-                  <input
-                    id="release-age-never"
-                    v-model="config.minimumReleaseAge"
-                    type="radio"
-                    value="never"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="release-age-never" class="font-medium text-gray-900 cursor-pointer">
-                      No Delay
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Update to new releases immediately. Renovate's default behavior.
-                      Get updates as soon as they're available.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- 3 Days Option -->
-                <div class="flex items-start">
-                  <input
-                    id="release-age-3"
-                    v-model="config.minimumReleaseAge"
-                    type="radio"
-                    value="3-days"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="release-age-3" class="font-medium text-gray-900 cursor-pointer">
-                      3 Days
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Wait 3 days after release. Short stabilization period to catch immediate bugs.
-                      Good balance for most teams.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- 7 Days Option -->
-                <div class="flex items-start">
-                  <input
-                    id="release-age-7"
-                    v-model="config.minimumReleaseAge"
-                    type="radio"
-                    value="7-days"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="release-age-7" class="font-medium text-gray-900 cursor-pointer">
-                      7 Days (1 Week)
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Wait 1 week after release. Gives the community time to discover issues.
-                      Recommended for stability-focused teams.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- 14 Days Option -->
-                <div class="flex items-start">
-                  <input
-                    id="release-age-14"
-                    v-model="config.minimumReleaseAge"
-                    type="radio"
-                    value="14-days"
-                    class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  >
-                  <div class="ml-3 flex-1">
-                    <label for="release-age-14" class="font-medium text-gray-900 cursor-pointer">
-                      14 Days (2 Weeks)
-                    </label>
-                    <p class="text-sm text-gray-600">
-                      Wait 2 weeks after release. Conservative approach for maximum stability.
-                      Best for risk-averse production environments.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <RadioCardGroup v-model="config.minimumReleaseAge" name="release-age" :options="releaseAgeOptions" />
 
               <div class="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded">
                 <p class="mb-2">
@@ -1065,11 +606,9 @@
                     v-model="config.lockFileMaintenance.schedule"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                   >
-                    <option value="at-any-time">At Any Time - Default</option>
-                    <option value="weekly">Once per Week (Monday before 5am)</option>
-                    <option value="monthly">Once per Month (First day before 5am)</option>
-                    <option value="weekends">Weekends Only</option>
-                    <option value="outside-business-hours">Outside Business Hours (Evenings + Weekends)</option>
+                    <option v-for="opt in scheduleOptions" :key="opt.value" :value="opt.value">
+                      {{ opt.label }}
+                    </option>
                   </select>
                   <p class="text-xs text-gray-600 mt-1">
                     Set a dedicated schedule for lock file maintenance, independent of the global update schedule.
@@ -1229,172 +768,15 @@
               <div
                 class="grid grid-cols-2 md:grid-cols-3 gap-3"
                 :class="{ 'opacity-50 pointer-events-none': config.groupAllNonMajor }">
-                <!-- npm -->
-                <div class="flex items-center">
+                <div v-for="group in managerGroups" :key="group.key" class="flex items-center">
                   <input
-                    id="group-npm"
-                    v-model="config.grouping.npm"
+                    :id="`group-${group.key}`"
+                    v-model="config.grouping[group.key]"
                     type="checkbox"
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                   >
-                  <label for="group-npm" class="ml-2 text-sm text-gray-900 cursor-pointer">
-                    npm (JavaScript)
-                  </label>
-                </div>
-
-                <!-- Docker -->
-                <div class="flex items-center">
-                  <input
-                    id="group-docker"
-                    v-model="config.grouping.docker"
-                    type="checkbox"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  >
-                  <label for="group-docker" class="ml-2 text-sm text-gray-900 cursor-pointer">
-                    Docker
-                  </label>
-                </div>
-
-                <!-- Maven -->
-                <div class="flex items-center">
-                  <input
-                    id="group-maven"
-                    v-model="config.grouping.maven"
-                    type="checkbox"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  >
-                  <label for="group-maven" class="ml-2 text-sm text-gray-900 cursor-pointer">
-                    Maven (Java)
-                  </label>
-                </div>
-
-                <!-- Gradle -->
-                <div class="flex items-center">
-                  <input
-                    id="group-gradle"
-                    v-model="config.grouping.gradle"
-                    type="checkbox"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  >
-                  <label for="group-gradle" class="ml-2 text-sm text-gray-900 cursor-pointer">
-                    Gradle (Java)
-                  </label>
-                </div>
-
-                <!-- pip -->
-                <div class="flex items-center">
-                  <input
-                    id="group-pip"
-                    v-model="config.grouping.pip"
-                    type="checkbox"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  >
-                  <label for="group-pip" class="ml-2 text-sm text-gray-900 cursor-pointer">
-                    pip (Python)
-                  </label>
-                </div>
-
-                <!-- Composer -->
-                <div class="flex items-center">
-                  <input
-                    id="group-composer"
-                    v-model="config.grouping.composer"
-                    type="checkbox"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  >
-                  <label for="group-composer" class="ml-2 text-sm text-gray-900 cursor-pointer">
-                    Composer (PHP)
-                  </label>
-                </div>
-
-                <!-- Helm -->
-                <div class="flex items-center">
-                  <input
-                    id="group-helm"
-                    v-model="config.grouping.helm"
-                    type="checkbox"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  >
-                  <label for="group-helm" class="ml-2 text-sm text-gray-900 cursor-pointer">
-                    Helm (Kubernetes)
-                  </label>
-                </div>
-
-                <!-- GitHub Actions -->
-                <div class="flex items-center">
-                  <input
-                    id="group-github-actions"
-                    v-model="config.grouping.githubActions"
-                    type="checkbox"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  >
-                  <label for="group-github-actions" class="ml-2 text-sm text-gray-900 cursor-pointer">
-                    GitHub Actions
-                  </label>
-                </div>
-
-                <!-- Terraform -->
-                <div class="flex items-center">
-                  <input
-                    id="group-terraform"
-                    v-model="config.grouping.terraform"
-                    type="checkbox"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  >
-                  <label for="group-terraform" class="ml-2 text-sm text-gray-900 cursor-pointer">
-                    Terraform
-                  </label>
-                </div>
-
-                <!-- Go -->
-                <div class="flex items-center">
-                  <input
-                    id="group-gomod"
-                    v-model="config.grouping.gomod"
-                    type="checkbox"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  >
-                  <label for="group-gomod" class="ml-2 text-sm text-gray-900 cursor-pointer">
-                    Go Modules
-                  </label>
-                </div>
-
-                <!-- Cargo -->
-                <div class="flex items-center">
-                  <input
-                    id="group-cargo"
-                    v-model="config.grouping.cargo"
-                    type="checkbox"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  >
-                  <label for="group-cargo" class="ml-2 text-sm text-gray-900 cursor-pointer">
-                    Cargo (Rust)
-                  </label>
-                </div>
-
-                <!-- Bundler -->
-                <div class="flex items-center">
-                  <input
-                    id="group-bundler"
-                    v-model="config.grouping.bundler"
-                    type="checkbox"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  >
-                  <label for="group-bundler" class="ml-2 text-sm text-gray-900 cursor-pointer">
-                    Bundler (Ruby)
-                  </label>
-                </div>
-
-                <!-- NuGet -->
-                <div class="flex items-center">
-                  <input
-                    id="group-nuget"
-                    v-model="config.grouping.nuget"
-                    type="checkbox"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  >
-                  <label for="group-nuget" class="ml-2 text-sm text-gray-900 cursor-pointer">
-                    NuGet (.NET)
+                  <label :for="`group-${group.key}`" class="ml-2 text-sm text-gray-900 cursor-pointer">
+                    {{ group.label }}
                   </label>
                 </div>
               </div>
@@ -1611,6 +993,16 @@ import { ref, computed, onMounted } from 'vue'
 import { generateRenovateConfigJson, configPresets, defaultPresetId, renovateDefaultsConfig, type RenovateConfig } from '../lib/generateRenovateConfig'
 import { parseRenovateJson } from '../lib/parseRenovateConfig'
 import { timezones } from '../lib/timezones'
+import {
+  prLimitOptions,
+  rebaseOptions,
+  rangeOptions,
+  automergeTypeOptions,
+  automergeLevelOptions,
+  releaseAgeOptions,
+  scheduleOptions,
+  managerGroups
+} from '../lib/formOptions'
 
 // Same-origin backend access (relative /api, CSRF + credentials) — shared with the dashboard.
 const { request } = useApi()
