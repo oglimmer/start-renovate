@@ -49,6 +49,96 @@ export interface RenovateConfig {
   }
 }
 
+// ===========================================================================
+// Shared vocabulary
+//
+// The single source of truth for every magic string/number that
+// buildRenovateConfig EMITS and parseRenovateConfig (the inverse) reads back.
+// Defining them once here — instead of re-hardcoding them in the parser — means
+// the forward and inverse mappings can never silently disagree. The round-trip
+// test (parseRenovateConfig.spec.ts) enforces that invariant. The backend's
+// RenovateConfigAnalyzer.java is the unavoidable cross-language twin; keep it in
+// sync by eye (its test guards it on the BE side).
+// ===========================================================================
+
+// `extends` preset ids toggled by the corresponding RenovateConfig flags.
+export const EXTENDS_PRESETS = {
+  semanticCommits: ':semanticCommits',
+  dockerDigests: 'docker:pinDigests',
+  githubActionDigests: 'helpers:pinGitHubActionDigests',
+  pinDevDependencies: ':pinDevDependencies',
+  flagAbandonedPackages: 'abandonments:recommended'
+} as const
+
+// prLimitStrategy → the hourly/concurrent caps Renovate enforces.
+export const PR_LIMITS = {
+  conservative: { prHourlyLimit: 1, prConcurrentLimit: 3 },
+  active: { prHourlyLimit: 10, prConcurrentLimit: 20 }
+} as const
+
+// schedule key → Renovate schedule cron array. Shared by the top-level `schedule`
+// and `lockFileMaintenance.schedule` (same vocabulary). 'at-any-time' carries the
+// literal ['at any time'] Renovate expects for lock-file maintenance; the
+// top-level schedule simply omits the key for that value instead.
+export const SCHEDULE_PRESETS: Record<RenovateConfig['schedule'], string[]> = {
+  'at-any-time': ['at any time'],
+  weekly: ['before 5am on monday'],
+  monthly: ['before 5am on the first day of the month'],
+  weekends: ['every weekend'],
+  'outside-business-hours': ['after 6pm every weekday', 'before 9am every weekday', 'every weekend']
+}
+
+// minimumReleaseAge key → the human duration Renovate accepts.
+export const RELEASE_AGE_LABELS: Record<Exclude<RenovateConfig['minimumReleaseAge'], 'never'>, string> = {
+  '3-days': '3 days',
+  '7-days': '7 days',
+  '14-days': '14 days'
+}
+
+// Grouping key → the managers it matches and the groupName Renovate surfaces.
+export const GROUPING_MANAGERS: Record<keyof RenovateConfig['grouping'], { managers: string[]; groupName: string }> = {
+  npm: { managers: ['npm'], groupName: 'npm dependencies' },
+  docker: { managers: ['dockerfile', 'docker-compose'], groupName: 'Docker dependencies' },
+  maven: { managers: ['maven'], groupName: 'Maven dependencies' },
+  gradle: { managers: ['gradle', 'gradle-wrapper'], groupName: 'Gradle dependencies' },
+  pip: { managers: ['pip_requirements', 'pip_setup', 'pipenv'], groupName: 'pip dependencies' },
+  composer: { managers: ['composer'], groupName: 'Composer dependencies' },
+  helm: { managers: ['helmv3', 'helmfile'], groupName: 'Helm dependencies' },
+  githubActions: { managers: ['github-actions'], groupName: 'GitHub Actions' },
+  terraform: { managers: ['terraform', 'terragrunt'], groupName: 'Terraform dependencies' },
+  gomod: { managers: ['gomod'], groupName: 'Go dependencies' },
+  cargo: { managers: ['cargo'], groupName: 'Cargo dependencies' },
+  bundler: { managers: ['bundler'], groupName: 'Bundler dependencies' },
+  nuget: { managers: ['nuget'], groupName: 'NuGet dependencies' }
+}
+
+// Reverse of SCHEDULE_PRESETS. Tries an exact match against what we emit first
+// (so our own output round-trips precisely), then falls back to fuzzy substring
+// matching so hand-written / third-party schedules are still recognized on import.
+export function schedulePresetFromValue(value: unknown): RenovateConfig['schedule'] | null {
+  const str = Array.isArray(value) ? value.join(', ') : String(value ?? '')
+  for (const [key, cron] of Object.entries(SCHEDULE_PRESETS)) {
+    if (cron.join(', ') === str) return key as RenovateConfig['schedule']
+  }
+  if (str.includes('monday') && str.includes('5am')) return 'weekly'
+  if (str.includes('first day of the month')) return 'monthly'
+  if (str.includes('weekend') && !str.includes('weekday')) return 'weekends'
+  if (str.includes('6pm') || str.includes('9am')) return 'outside-business-hours'
+  return null
+}
+
+// Reverse of RELEASE_AGE_LABELS, with the same exact-then-fuzzy strategy.
+export function releaseAgePresetFromValue(value: unknown): Exclude<RenovateConfig['minimumReleaseAge'], 'never'> | null {
+  const str = String(value ?? '').toLowerCase()
+  for (const [key, label] of Object.entries(RELEASE_AGE_LABELS)) {
+    if (label.toLowerCase() === str) return key as Exclude<RenovateConfig['minimumReleaseAge'], 'never'>
+  }
+  if (str.includes('3')) return '3-days'
+  if (str.includes('7') || str.includes('1 week')) return '7-days'
+  if (str.includes('14') || str.includes('2 week')) return '14-days'
+  return null
+}
+
 // The canonical default configuration. This is the single source of truth for
 // the initial form state (see pages/index.vue) AND the baseline that the
 // query-param "pseudo API" (see pages/generate.vue) merges overrides onto.
@@ -231,23 +321,23 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
   ]
 
   if (config.semanticCommits) {
-    extends_array.push(':semanticCommits')
+    extends_array.push(EXTENDS_PRESETS.semanticCommits)
   }
 
   // Digest/SHA pinning presets — supply-chain hardening (see RenovateConfig.pinning).
   if (config.pinning.dockerDigests) {
-    extends_array.push('docker:pinDigests')
+    extends_array.push(EXTENDS_PRESETS.dockerDigests)
   }
   if (config.pinning.githubActionDigests) {
-    extends_array.push('helpers:pinGitHubActionDigests')
+    extends_array.push(EXTENDS_PRESETS.githubActionDigests)
   }
   if (config.pinning.devDependencies) {
-    extends_array.push(':pinDevDependencies')
+    extends_array.push(EXTENDS_PRESETS.pinDevDependencies)
   }
 
   // Flag abandoned/unmaintained dependencies (config:best-practices component).
   if (config.flagAbandonedPackages) {
-    extends_array.push('abandonments:recommended')
+    extends_array.push(EXTENDS_PRESETS.flagAbandonedPackages)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -264,21 +354,13 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
   }
 
   if (config.schedule !== 'at-any-time') {
-    const scheduleMap: Record<string, string[]> = {
-      'weekly': ['before 5am on monday'],
-      'monthly': ['before 5am on the first day of the month'],
-      'weekends': ['every weekend'],
-      'outside-business-hours': ['after 6pm every weekday', 'before 9am every weekday', 'every weekend']
-    }
-    configObject.schedule = scheduleMap[config.schedule]
+    configObject.schedule = SCHEDULE_PRESETS[config.schedule]
   }
 
-  if (config.prLimitStrategy === 'conservative') {
-    configObject.prHourlyLimit = 1
-    configObject.prConcurrentLimit = 3
-  } else if (config.prLimitStrategy === 'active') {
-    configObject.prHourlyLimit = 10
-    configObject.prConcurrentLimit = 20
+  if (config.prLimitStrategy === 'conservative' || config.prLimitStrategy === 'active') {
+    const limits = PR_LIMITS[config.prLimitStrategy]
+    configObject.prHourlyLimit = limits.prHourlyLimit
+    configObject.prConcurrentLimit = limits.prConcurrentLimit
   }
 
   if (config.rebaseWhen !== 'auto') {
@@ -320,22 +402,6 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
       groupName: '{{manager}} non-major dependencies'
     })
   } else {
-    const groupingMap: Record<string, { managers: string[]; groupName: string }> = {
-      npm: { managers: ['npm'], groupName: 'npm dependencies' },
-      docker: { managers: ['dockerfile', 'docker-compose'], groupName: 'Docker dependencies' },
-      maven: { managers: ['maven'], groupName: 'Maven dependencies' },
-      gradle: { managers: ['gradle', 'gradle-wrapper'], groupName: 'Gradle dependencies' },
-      pip: { managers: ['pip_requirements', 'pip_setup', 'pipenv'], groupName: 'pip dependencies' },
-      composer: { managers: ['composer'], groupName: 'Composer dependencies' },
-      helm: { managers: ['helmv3', 'helmfile'], groupName: 'Helm dependencies' },
-      githubActions: { managers: ['github-actions'], groupName: 'GitHub Actions' },
-      terraform: { managers: ['terraform', 'terragrunt'], groupName: 'Terraform dependencies' },
-      gomod: { managers: ['gomod'], groupName: 'Go dependencies' },
-      cargo: { managers: ['cargo'], groupName: 'Cargo dependencies' },
-      bundler: { managers: ['bundler'], groupName: 'Bundler dependencies' },
-      nuget: { managers: ['nuget'], groupName: 'NuGet dependencies' }
-    }
-
     const enabledGroups = Object.entries(config.grouping)
       .filter(([_, enabled]) => enabled)
       .map(([key, _]) => key)
@@ -344,7 +410,7 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
       configObject.packageRules = configObject.packageRules || []
 
       enabledGroups.forEach(groupKey => {
-        const group = groupingMap[groupKey as keyof typeof groupingMap]
+        const group = GROUPING_MANAGERS[groupKey as keyof typeof GROUPING_MANAGERS]
         if (group) {
           configObject.packageRules.push({
             description: `Group ${group.groupName} (non-major updates)`,
@@ -430,12 +496,7 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
   }
 
   if (config.minimumReleaseAge !== 'never') {
-    const ageMap: Record<string, string> = {
-      '3-days': '3 days',
-      '7-days': '7 days',
-      '14-days': '14 days'
-    }
-    configObject.minimumReleaseAge = ageMap[config.minimumReleaseAge]
+    configObject.minimumReleaseAge = RELEASE_AGE_LABELS[config.minimumReleaseAge]
     // Pair with the release-age delay: with "strict", Renovate won't even raise
     // a branch/PR until the version clears minimumReleaseAge, instead of parking
     // a pending PR for days. Less dashboard churn (guide §6).
@@ -447,17 +508,9 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
       enabled: true
     }
 
-    if (config.lockFileMaintenance.schedule !== 'at-any-time') {
-      const lockFileScheduleMap: Record<string, string[]> = {
-        'weekly': ['before 5am on monday'],
-        'monthly': ['before 5am on the first day of the month'],
-        'weekends': ['every weekend'],
-        'outside-business-hours': ['after 6pm every weekday', 'before 9am every weekday', 'every weekend']
-      }
-      configObject.lockFileMaintenance.schedule = lockFileScheduleMap[config.lockFileMaintenance.schedule]
-    } else {
-      configObject.lockFileMaintenance.schedule = ['at any time']
-    }
+    // SCHEDULE_PRESETS carries the ['at any time'] literal for 'at-any-time', so
+    // unlike the top-level schedule (which omits the key) this always emits one.
+    configObject.lockFileMaintenance.schedule = SCHEDULE_PRESETS[config.lockFileMaintenance.schedule]
 
     if (config.lockFileMaintenance.automerge) {
       configObject.lockFileMaintenance.automerge = true

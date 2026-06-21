@@ -7,7 +7,14 @@
 // numbers, extends preset ids) are exactly what buildRenovateConfig emits. The
 // round-trip test (parseRenovateConfig.spec.ts) pins the two together: any change
 // to the strings buildRenovateConfig produces must keep build → parse stable.
-import type { RenovateConfig } from './generateRenovateConfig'
+import {
+  EXTENDS_PRESETS,
+  GROUPING_MANAGERS,
+  PR_LIMITS,
+  releaseAgePresetFromValue,
+  schedulePresetFromValue,
+  type RenovateConfig
+} from './generateRenovateConfig'
 
 // Parse renovate.json and map it back to our config structure
 export const parseRenovateJson = (jsonString: string): Partial<RenovateConfig> => {
@@ -16,13 +23,13 @@ export const parseRenovateJson = (jsonString: string): Partial<RenovateConfig> =
 
   // Parse extends for semantic commits and supply-chain hardening presets
   if (parsed.extends && Array.isArray(parsed.extends)) {
-    result.semanticCommits = parsed.extends.includes(':semanticCommits')
+    result.semanticCommits = parsed.extends.includes(EXTENDS_PRESETS.semanticCommits)
     result.pinning = {
-      dockerDigests: parsed.extends.includes('docker:pinDigests'),
-      githubActionDigests: parsed.extends.includes('helpers:pinGitHubActionDigests'),
-      devDependencies: parsed.extends.includes(':pinDevDependencies')
+      dockerDigests: parsed.extends.includes(EXTENDS_PRESETS.dockerDigests),
+      githubActionDigests: parsed.extends.includes(EXTENDS_PRESETS.githubActionDigests),
+      devDependencies: parsed.extends.includes(EXTENDS_PRESETS.pinDevDependencies)
     }
-    result.flagAbandonedPackages = parsed.extends.includes('abandonments:recommended')
+    result.flagAbandonedPackages = parsed.extends.includes(EXTENDS_PRESETS.flagAbandonedPackages)
   }
 
   // Parse timezone
@@ -30,26 +37,15 @@ export const parseRenovateJson = (jsonString: string): Partial<RenovateConfig> =
     result.timezone = parsed.timezone
   }
 
-  // Parse schedule
+  // Parse schedule (exact-match-then-fuzzy, shared with the forward generator).
   if (parsed.schedule) {
-    const scheduleStr = Array.isArray(parsed.schedule) ? parsed.schedule.join(', ') : parsed.schedule
-    if (scheduleStr.includes('monday') && scheduleStr.includes('5am')) {
-      result.schedule = 'weekly'
-    } else if (scheduleStr.includes('first day of the month')) {
-      result.schedule = 'monthly'
-    } else if (scheduleStr.includes('weekend') && !scheduleStr.includes('weekday')) {
-      result.schedule = 'weekends'
-    } else if (scheduleStr.includes('6pm') || scheduleStr.includes('9am')) {
-      result.schedule = 'outside-business-hours'
-    } else {
-      result.schedule = 'at-any-time'
-    }
+    result.schedule = schedulePresetFromValue(parsed.schedule) ?? 'at-any-time'
   }
 
   // Parse PR limits
-  if (parsed.prHourlyLimit === 1 && parsed.prConcurrentLimit === 3) {
+  if (parsed.prHourlyLimit === PR_LIMITS.conservative.prHourlyLimit && parsed.prConcurrentLimit === PR_LIMITS.conservative.prConcurrentLimit) {
     result.prLimitStrategy = 'conservative'
-  } else if (parsed.prHourlyLimit === 10 && parsed.prConcurrentLimit === 20) {
+  } else if (parsed.prHourlyLimit === PR_LIMITS.active.prHourlyLimit && parsed.prConcurrentLimit === PR_LIMITS.active.prConcurrentLimit) {
     result.prLimitStrategy = 'active'
   } else if (parsed.prHourlyLimit !== undefined || parsed.prConcurrentLimit !== undefined) {
     // Custom values - pick closest match
@@ -82,15 +78,11 @@ export const parseRenovateJson = (jsonString: string): Partial<RenovateConfig> =
     result.ignoreTests = parsed.ignoreTests
   }
 
-  // Parse minimumReleaseAge
+  // Parse minimumReleaseAge (exact-match-then-fuzzy, shared with the forward generator).
   if (parsed.minimumReleaseAge) {
-    const age = parsed.minimumReleaseAge.toLowerCase()
-    if (age.includes('3')) {
-      result.minimumReleaseAge = '3-days'
-    } else if (age.includes('7') || age.includes('1 week')) {
-      result.minimumReleaseAge = '7-days'
-    } else if (age.includes('14') || age.includes('2 week')) {
-      result.minimumReleaseAge = '14-days'
+    const age = releaseAgePresetFromValue(parsed.minimumReleaseAge)
+    if (age) {
+      result.minimumReleaseAge = age
     }
   }
 
@@ -103,22 +95,10 @@ export const parseRenovateJson = (jsonString: string): Partial<RenovateConfig> =
   if (parsed.packageRules && Array.isArray(parsed.packageRules)) {
     // Default these off; the loop below flips them on if a matching rule exists.
     result.requireMajorApproval = false
-    // Initialize grouping
-    result.grouping = {
-      npm: false,
-      docker: false,
-      maven: false,
-      gradle: false,
-      pip: false,
-      composer: false,
-      helm: false,
-      githubActions: false,
-      terraform: false,
-      gomod: false,
-      cargo: false,
-      bundler: false,
-      nuget: false
-    }
+    // Initialize grouping from the shared manager map (every key off).
+    result.grouping = Object.fromEntries(
+      Object.keys(GROUPING_MANAGERS).map(key => [key, false])
+    ) as RenovateConfig['grouping']
 
     for (const rule of parsed.packageRules) {
       // Check for automerge rules
@@ -146,22 +126,16 @@ export const parseRenovateJson = (jsonString: string): Partial<RenovateConfig> =
         result.requireMajorApproval = true
       }
 
-      // Check for grouping rules
+      // Check for grouping rules: a manager group is "on" if the rule lists any of
+      // its managers (shared GROUPING_MANAGERS map — the same one the forward
+      // generator emits from, so detection can't drift from emission).
       if (rule.matchManagers && rule.groupName) {
-        const managers = rule.matchManagers
-        if (managers.includes('npm')) result.grouping!.npm = true
-        if (managers.includes('dockerfile') || managers.includes('docker-compose')) result.grouping!.docker = true
-        if (managers.includes('maven')) result.grouping!.maven = true
-        if (managers.includes('gradle') || managers.includes('gradle-wrapper')) result.grouping!.gradle = true
-        if (managers.includes('pip_requirements') || managers.includes('pip_setup') || managers.includes('pipenv')) result.grouping!.pip = true
-        if (managers.includes('composer')) result.grouping!.composer = true
-        if (managers.includes('helmv3') || managers.includes('helmfile')) result.grouping!.helm = true
-        if (managers.includes('github-actions')) result.grouping!.githubActions = true
-        if (managers.includes('terraform') || managers.includes('terragrunt')) result.grouping!.terraform = true
-        if (managers.includes('gomod')) result.grouping!.gomod = true
-        if (managers.includes('cargo')) result.grouping!.cargo = true
-        if (managers.includes('bundler')) result.grouping!.bundler = true
-        if (managers.includes('nuget')) result.grouping!.nuget = true
+        const managers: string[] = rule.matchManagers
+        for (const [key, group] of Object.entries(GROUPING_MANAGERS)) {
+          if (group.managers.some(m => managers.includes(m))) {
+            result.grouping![key as keyof RenovateConfig['grouping']] = true
+          }
+        }
       }
     }
   }
@@ -175,18 +149,10 @@ export const parseRenovateJson = (jsonString: string): Partial<RenovateConfig> =
     }
 
     if (parsed.lockFileMaintenance.schedule) {
-      const scheduleStr = Array.isArray(parsed.lockFileMaintenance.schedule)
-        ? parsed.lockFileMaintenance.schedule.join(', ')
-        : parsed.lockFileMaintenance.schedule
-      if (scheduleStr.includes('monday') && scheduleStr.includes('5am')) {
-        result.lockFileMaintenance.schedule = 'weekly'
-      } else if (scheduleStr.includes('first day of the month')) {
-        result.lockFileMaintenance.schedule = 'monthly'
-      } else if (scheduleStr.includes('weekend') && !scheduleStr.includes('weekday')) {
-        result.lockFileMaintenance.schedule = 'weekends'
-      } else if (scheduleStr.includes('6pm') || scheduleStr.includes('9am')) {
-        result.lockFileMaintenance.schedule = 'outside-business-hours'
-      }
+      // Same shared schedule vocabulary as the top-level schedule; default stays
+      // 'at-any-time' when nothing recognizable matches.
+      result.lockFileMaintenance.schedule =
+        schedulePresetFromValue(parsed.lockFileMaintenance.schedule) ?? 'at-any-time'
     }
   }
 
