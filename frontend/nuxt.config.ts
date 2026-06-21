@@ -16,7 +16,7 @@ export default defineNuxtConfig({
     },
     prerender: {
       crawlLinks: true,
-      routes: ['/', '/developers', '/generate', '/dashboard']
+      routes: ['/', '/developers', '/generate', '/dashboard', '/imprint', '/privacy', '/terms']
     }
   },
   app: {
