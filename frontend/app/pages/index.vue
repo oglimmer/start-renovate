@@ -1612,6 +1612,9 @@ import { generateRenovateConfigJson, configPresets, defaultPresetId, renovateDef
 import { parseRenovateJson } from '../lib/parseRenovateConfig'
 import { timezones } from '../lib/timezones'
 
+// Same-origin backend access (relative /api, CSRF + credentials) — shared with the dashboard.
+const { request } = useApi()
+
 // sessionStorage key the dashboard uses to hand a repo's renovate.json to the editor.
 const EDITOR_IMPORT_KEY = 'renovate:editor-import'
 
@@ -1826,28 +1829,14 @@ const applyImportedConfig = (imported: Partial<RenovateConfig>) => {
   }
 }
 
-const getBackendUrl = () => {
-  if (typeof window === 'undefined') {
-    // Server-side rendering
-    return 'http://localhost:8080/api'
-  }
-
-  // Client-side
-  if (window.location.hostname === 'localhost') {
-    return 'http://localhost:8080/api'
-  }
-
-  // Production: use same protocol, domain, port with /api path
-  return `${window.location.protocol}//${window.location.host}/api`
-}
-
 const getFeedback = async () => {
   isLoadingFeedback.value = true
   feedback.value = null
 
   try {
-    const backendUrl = getBackendUrl()
-    const response = await fetch(`${backendUrl}/feedback`, {
+    // Same-origin `/api` via useApi (CSRF + credentials handled centrally) — never a hardcoded
+    // backend host. Mirrors how the dashboard talks to the backend.
+    const response = await request('/feedback', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -5,6 +5,7 @@ import com.oglimmer.start_renovate.dto.RenovateFeedbackRequest;
 import com.oglimmer.start_renovate.dto.RenovateFeedbackResponse;
 import com.oglimmer.start_renovate.service.RenovateFeedbackService;
 import com.oglimmer.start_renovate.service.RenovateSchemaValidationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,7 +24,8 @@ public class FeedbackController {
   private final RenovateSchemaValidationService validationService;
 
   @PostMapping
-  public Mono<RenovateFeedbackResponse> getFeedback(@RequestBody RenovateFeedbackRequest request) {
+  public Mono<RenovateFeedbackResponse> getFeedback(
+      @Valid @RequestBody RenovateFeedbackRequest request) {
     var validationResult = validationService.validate(request.renovateJson());
     if (!validationResult.valid()) {
       return Mono.error(
