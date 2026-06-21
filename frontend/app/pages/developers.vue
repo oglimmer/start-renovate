@@ -328,7 +328,7 @@ useHead({
 
 const toc = [
   { id: 'overview', label: 'Overview' },
-  { id: 'feedback', label: 'POST /feedback' },
+  { id: 'feedback', label: 'POST /api/feedback' },
   { id: 'generate', label: 'GET /api/generate' },
   { id: 'dtos', label: 'Data types' }
 ]
