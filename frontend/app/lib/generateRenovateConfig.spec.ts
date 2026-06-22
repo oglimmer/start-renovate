@@ -132,12 +132,45 @@ describe('buildRenovateConfig — vulnerability alert release-age override', () 
     }
   })
 
-  it('never places minimumReleaseAge inside a packageRules entry', () => {
+  it('never introduces a positive minimumReleaseAge delay via a packageRules entry (rules may only cancel it with "0 days")', () => {
+    // A per-rule minimumReleaseAge is valid Renovate config, but the global
+    // stabilization window must never be re-scoped into a rule — the only legitimate
+    // in-rule use is the Docker :latest carve-out, which CANCELS the delay ("0 days").
     const out = buildRenovateConfig(makeConfig({ minimumReleaseAge: '7-days', automergeDevDependencies: true }))
     const rules = out.packageRules ?? []
     for (const rule of rules) {
-      expect(rule).not.toHaveProperty('minimumReleaseAge')
+      if (Object.prototype.hasOwnProperty.call(rule, 'minimumReleaseAge')) {
+        expect(rule.minimumReleaseAge).toBe('0 days')
+      }
     }
+  })
+
+  it('carves Docker :latest out of digest pinning when dockerDigests is on, and cancels the release-age delay for it', () => {
+    const isLatestRule = (r: Record<string, unknown>) =>
+      Array.isArray(r.matchDatasources) && (r.matchDatasources as string[]).includes('docker')
+      && r.matchCurrentValue === '/^latest$/'
+
+    // dockerDigests on + a global delay → never pin :latest, and cancel the delay.
+    const withDelay = (buildRenovateConfig(makeConfig({
+      pinning: { dockerDigests: true, githubActionDigests: false, devDependencies: false },
+      minimumReleaseAge: '7-days'
+    })).packageRules ?? []).find(isLatestRule)
+    expect(withDelay).toMatchObject({ pinDigests: false, minimumReleaseAge: '0 days' })
+
+    // dockerDigests on but no global delay → still don't pin :latest, but omit the
+    // redundant "0 days" (nothing to cancel).
+    const noDelay = (buildRenovateConfig(makeConfig({
+      pinning: { dockerDigests: true, githubActionDigests: false, devDependencies: false },
+      minimumReleaseAge: 'never'
+    })).packageRules ?? []).find(isLatestRule)
+    expect(noDelay).toMatchObject({ pinDigests: false })
+    expect(noDelay).not.toHaveProperty('minimumReleaseAge')
+
+    // dockerDigests off → no carve-out rule at all (nothing would pin :latest).
+    const off = (buildRenovateConfig(makeConfig({
+      pinning: { dockerDigests: false, githubActionDigests: false, devDependencies: false }
+    })).packageRules ?? []).find(isLatestRule)
+    expect(off).toBeUndefined()
   })
 })
 

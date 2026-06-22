@@ -377,7 +377,8 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
 
   // === packageRules are emitted in a deliberate top-to-bottom order so the file
   // reads like a lesson: (1) WHO gets grouped, (2) WHAT automerges, (3) automerge
-  // SAFETY blocks, (4) the major slow-lane gate. Renovate merges EVERY matching
+  // SAFETY blocks, (3b) the Docker :latest carve-out, (4) the major slow-lane gate.
+  // Renovate merges EVERY matching
   // rule (a later rule wins only on a shared key), so order is significant solely
   // between rules touching the same key — the 0.x `automerge:false` block (3) must
   // stay AFTER the automerge-enable rule (2). Grouping, automerge and the major
@@ -480,6 +481,32 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
 
   if (config.ignoreTests) {
     configObject.ignoreTests = true
+  }
+
+  // (3b) Supply-chain pragmatics — Docker :latest is a moving tag, so pinning it to
+  // a digest is meaningless: the digest changes on every upstream push, its "age"
+  // keeps resetting, and under minimumReleaseAge the pin sits perpetually pending —
+  // blocking automerge of its whole group. So whenever digest pinning is on, carve
+  // :latest out: never pin it (pinDigests:false), and cancel the release-age delay
+  // so a stray digest update on an already-pinned latest@sha can't stall either.
+  // Touches only pinDigests/minimumReleaseAge — no key it shares with the rules
+  // above or below — so its position is purely for readability.
+  if (config.pinning.dockerDigests) {
+    configObject.packageRules = configObject.packageRules || []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const latestRule: Record<string, any> = {
+      description: 'Keep Docker :latest live — never pin a moving tag to a digest',
+      matchDatasources: ['docker'],
+      matchCurrentValue: '/^latest$/',
+      pinDigests: false
+    }
+    // Only cancel a delay that actually exists (mirrors the vulnerabilityAlerts
+    // override below): with no global minimumReleaseAge there is nothing to cancel,
+    // so "0 days" would just restate Renovate's default and add noise.
+    if (config.minimumReleaseAge !== 'never') {
+      latestRule.minimumReleaseAge = '0 days'
+    }
+    configObject.packageRules.push(latestRule)
   }
 
   // (4) Slow lane — keep major updates off the automerge path and out of the PR

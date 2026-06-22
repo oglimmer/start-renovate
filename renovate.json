@@ -62,6 +62,15 @@
       "automerge": false
     },
     {
+      "description": "Keep Docker :latest live — never pin a moving tag to a digest",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchCurrentValue": "/^latest$/",
+      "pinDigests": false,
+      "minimumReleaseAge": "0 days"
+    },
+    {
       "description": "Isolate major updates behind Dependency Dashboard approval",
       "matchUpdateTypes": [
         "major"
