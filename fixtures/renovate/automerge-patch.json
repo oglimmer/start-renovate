@@ -63,7 +63,17 @@
         "docker"
       ],
       "matchCurrentValue": "/^latest$/",
-      "pinDigests": false,
+      "pinDigests": false
+    },
+    {
+      "description": "No release-age delay on Docker digest pins — a pin records which image a tag resolves to, not a new version (version bumps keep their soak)",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchUpdateTypes": [
+        "pin",
+        "digest"
+      ],
       "minimumReleaseAge": "0 days"
     },
     {

@@ -483,30 +483,39 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
     configObject.ignoreTests = true
   }
 
-  // (3b) Supply-chain pragmatics — Docker :latest is a moving tag, so pinning it to
-  // a digest is meaningless: the digest changes on every upstream push, its "age"
-  // keeps resetting, and under minimumReleaseAge the pin sits perpetually pending —
-  // blocking automerge of its whole group. So whenever digest pinning is on, carve
-  // :latest out: never pin it (pinDigests:false), and cancel the release-age delay
-  // so a stray digest update on an already-pinned latest@sha can't stall either.
-  // Touches only pinDigests/minimumReleaseAge — no key it shares with the rules
-  // above or below — so its position is purely for readability.
+  // (3b) Docker digest hygiene — two related carve-outs, both only meaningful when
+  // digest pinning is on (otherwise nothing here would fire):
+  //   • :latest is a MOVING tag, so pinning it to a digest is meaningless (the
+  //     digest changes on every upstream push). Never pin it — leave it live.
+  //   • A digest pin/refresh is BOOKKEEPING: it records which immutable image a tag
+  //     currently resolves to, not a new version. minimumReleaseAge exists to soak
+  //     VERSION bumps (which keep their delay via minor/patch/major update types),
+  //     but Renovate has no reliable release timestamp for a digest pin, so under a
+  //     global delay the stability check fails closed and the pin sits perpetually
+  //     pending — blocking automerge of its whole group even for images published
+  //     months ago. So cancel the delay for the pin/digest update types. Tradeoff:
+  //     a freshly-repushed digest is pinned without a soak — acceptable, since the
+  //     version tag itself was soaked when adopted and every pin stays auditable in
+  //     git. Touches only pinDigests/minimumReleaseAge — keys unshared with the
+  //     rules above/below — so position is purely for readability.
   if (config.pinning.dockerDigests) {
     configObject.packageRules = configObject.packageRules || []
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const latestRule: Record<string, any> = {
+    configObject.packageRules.push({
       description: 'Keep Docker :latest live — never pin a moving tag to a digest',
       matchDatasources: ['docker'],
       matchCurrentValue: '/^latest$/',
       pinDigests: false
-    }
+    })
     // Only cancel a delay that actually exists (mirrors the vulnerabilityAlerts
-    // override below): with no global minimumReleaseAge there is nothing to cancel,
-    // so "0 days" would just restate Renovate's default and add noise.
+    // override below): with no global minimumReleaseAge there is nothing to cancel.
     if (config.minimumReleaseAge !== 'never') {
-      latestRule.minimumReleaseAge = '0 days'
+      configObject.packageRules.push({
+        description: 'No release-age delay on Docker digest pins — a pin records which image a tag resolves to, not a new version (version bumps keep their soak)',
+        matchDatasources: ['docker'],
+        matchUpdateTypes: ['pin', 'digest'],
+        minimumReleaseAge: '0 days'
+      })
     }
-    configObject.packageRules.push(latestRule)
   }
 
   // (4) Slow lane — keep major updates off the automerge path and out of the PR

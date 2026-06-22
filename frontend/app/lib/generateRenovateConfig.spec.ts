@@ -145,32 +145,43 @@ describe('buildRenovateConfig — vulnerability alert release-age override', () 
     }
   })
 
-  it('carves Docker :latest out of digest pinning when dockerDigests is on, and cancels the release-age delay for it', () => {
-    const isLatestRule = (r: Record<string, unknown>) =>
+  it('carves Docker :latest out of digest pinning and cancels the release-age delay for digest pins', () => {
+    const rulesFor = (overrides: Partial<RenovateConfig>) =>
+      (buildRenovateConfig(makeConfig(overrides)).packageRules ?? []) as Record<string, unknown>[]
+    const isLatest = (r: Record<string, unknown>) =>
       Array.isArray(r.matchDatasources) && (r.matchDatasources as string[]).includes('docker')
       && r.matchCurrentValue === '/^latest$/'
+    const isDigestAge = (r: Record<string, unknown>) =>
+      Array.isArray(r.matchDatasources) && (r.matchDatasources as string[]).includes('docker')
+      && Array.isArray(r.matchUpdateTypes) && (r.matchUpdateTypes as string[]).includes('digest')
 
-    // dockerDigests on + a global delay → never pin :latest, and cancel the delay.
-    const withDelay = (buildRenovateConfig(makeConfig({
+    // dockerDigests on + a global delay → :latest is never pinned (and carries no
+    // release-age key itself), and digest/pin updates get the delay cancelled.
+    const withDelay = rulesFor({
       pinning: { dockerDigests: true, githubActionDigests: false, devDependencies: false },
       minimumReleaseAge: '7-days'
-    })).packageRules ?? []).find(isLatestRule)
-    expect(withDelay).toMatchObject({ pinDigests: false, minimumReleaseAge: '0 days' })
+    })
+    const latest = withDelay.find(isLatest)
+    expect(latest).toMatchObject({ pinDigests: false })
+    expect(latest).not.toHaveProperty('minimumReleaseAge')
+    expect(withDelay.find(isDigestAge)).toMatchObject({
+      matchUpdateTypes: ['pin', 'digest'],
+      minimumReleaseAge: '0 days'
+    })
 
-    // dockerDigests on but no global delay → still don't pin :latest, but omit the
-    // redundant "0 days" (nothing to cancel).
-    const noDelay = (buildRenovateConfig(makeConfig({
+    // dockerDigests on but no global delay → still don't pin :latest, but there is
+    // no delay to cancel, so omit the digest-age rule entirely.
+    const noDelay = rulesFor({
       pinning: { dockerDigests: true, githubActionDigests: false, devDependencies: false },
       minimumReleaseAge: 'never'
-    })).packageRules ?? []).find(isLatestRule)
-    expect(noDelay).toMatchObject({ pinDigests: false })
-    expect(noDelay).not.toHaveProperty('minimumReleaseAge')
+    })
+    expect(noDelay.find(isLatest)).toMatchObject({ pinDigests: false })
+    expect(noDelay.find(isDigestAge)).toBeUndefined()
 
-    // dockerDigests off → no carve-out rule at all (nothing would pin :latest).
-    const off = (buildRenovateConfig(makeConfig({
-      pinning: { dockerDigests: false, githubActionDigests: false, devDependencies: false }
-    })).packageRules ?? []).find(isLatestRule)
-    expect(off).toBeUndefined()
+    // dockerDigests off → neither rule (nothing would pin a Docker digest).
+    const off = rulesFor({ pinning: { dockerDigests: false, githubActionDigests: false, devDependencies: false } })
+    expect(off.find(isLatest)).toBeUndefined()
+    expect(off.find(isDigestAge)).toBeUndefined()
   })
 })
 
