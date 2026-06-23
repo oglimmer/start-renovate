@@ -24,6 +24,7 @@
         "minor",
         "patch",
         "pin",
+        "pinDigest",
         "digest"
       ],
       "groupName": "{{manager}} non-major dependencies"
@@ -48,6 +49,7 @@
       ],
       "matchUpdateTypes": [
         "pin",
+        "pinDigest",
         "digest"
       ],
       "minimumReleaseAge": "0 days"

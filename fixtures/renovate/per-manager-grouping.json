@@ -27,6 +27,7 @@
         "minor",
         "patch",
         "pin",
+        "pinDigest",
         "digest"
       ],
       "groupName": "npm dependencies"
@@ -41,6 +42,7 @@
         "minor",
         "patch",
         "pin",
+        "pinDigest",
         "digest"
       ],
       "groupName": "Docker dependencies"
@@ -54,6 +56,7 @@
         "minor",
         "patch",
         "pin",
+        "pinDigest",
         "digest"
       ],
       "groupName": "Maven dependencies"
@@ -67,16 +70,18 @@
         "minor",
         "patch",
         "pin",
+        "pinDigest",
         "digest"
       ],
       "groupName": "GitHub Actions"
     },
     {
-      "description": "Automerge minor, patch, pin, digest updates (low-risk, non-major)",
+      "description": "Automerge minor, patch, pin, pinDigest, digest updates (low-risk, non-major)",
       "matchUpdateTypes": [
         "minor",
         "patch",
         "pin",
+        "pinDigest",
         "digest"
       ],
       "automerge": true
@@ -116,6 +121,7 @@
       ],
       "matchUpdateTypes": [
         "pin",
+        "pinDigest",
         "digest"
       ],
       "minimumReleaseAge": "0 days"

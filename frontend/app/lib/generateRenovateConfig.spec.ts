@@ -165,7 +165,7 @@ describe('buildRenovateConfig — vulnerability alert release-age override', () 
     expect(latest).toMatchObject({ pinDigests: false })
     expect(latest).not.toHaveProperty('minimumReleaseAge')
     expect(withDelay.find(isDigestAge)).toMatchObject({
-      matchUpdateTypes: ['pin', 'digest'],
+      matchUpdateTypes: ['pin', 'pinDigest', 'digest'],
       minimumReleaseAge: '0 days'
     })
 
@@ -231,16 +231,16 @@ describe('buildRenovateConfig — safe-by-default settings', () => {
     expect(out.extends).not.toContain('abandonments:recommended')
   })
 
-  it('automerges pin and digest update types so hardening keeps a clean git history', () => {
-    // minor level → minor + patch + pin + digest
+  it('automerges pin, pinDigest and digest update types so hardening keeps a clean git history', () => {
+    // minor level → minor + patch + pin + pinDigest + digest
     const minorRule = buildRenovateConfig(makeConfig({ automergeLevel: 'minor' })).packageRules
       .find((r: { matchUpdateTypes?: string[] }) => Array.isArray(r.matchUpdateTypes))
-    expect(minorRule.matchUpdateTypes).toEqual(['minor', 'patch', 'pin', 'digest'])
+    expect(minorRule.matchUpdateTypes).toEqual(['minor', 'patch', 'pin', 'pinDigest', 'digest'])
 
-    // patch level → patch + pin + digest
+    // patch level → patch + pin + pinDigest + digest
     const patchRule = buildRenovateConfig(makeConfig({ automergeLevel: 'patch' })).packageRules
       .find((r: { matchUpdateTypes?: string[] }) => Array.isArray(r.matchUpdateTypes))
-    expect(patchRule.matchUpdateTypes).toEqual(['patch', 'pin', 'digest'])
+    expect(patchRule.matchUpdateTypes).toEqual(['patch', 'pin', 'pinDigest', 'digest'])
   })
 
   it('defaults lock-file maintenance to a weekly schedule (matches :maintainLockFilesWeekly)', () => {
@@ -291,7 +291,7 @@ describe('buildRenovateConfig — fast/slow lane grouping', () => {
     const groupRules = (out.packageRules ?? []).filter(isGroupRule)
     expect(groupRules).toContainEqual({
       description: "Group each manager's non-major updates into one PR per manager",
-      matchUpdateTypes: ['minor', 'patch', 'pin', 'digest'],
+      matchUpdateTypes: ['minor', 'patch', 'pin', 'pinDigest', 'digest'],
       groupName: '{{manager}} non-major dependencies'
     })
     // No manager-pinned group rules when auto-grouping is on.
@@ -317,7 +317,7 @@ describe('buildRenovateConfig — fast/slow lane grouping', () => {
     expect(groupRules).toContainEqual({
       description: 'Group npm dependencies (non-major updates)',
       matchManagers: ['npm'],
-      matchUpdateTypes: ['minor', 'patch', 'pin', 'digest'],
+      matchUpdateTypes: ['minor', 'patch', 'pin', 'pinDigest', 'digest'],
       groupName: 'npm dependencies'
     })
     // Every group rule excludes major.

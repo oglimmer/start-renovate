@@ -27,16 +27,18 @@
         "minor",
         "patch",
         "pin",
+        "pinDigest",
         "digest"
       ],
       "groupName": "{{manager}} non-major dependencies"
     },
     {
-      "description": "Automerge minor, patch, pin, digest updates (low-risk, non-major)",
+      "description": "Automerge minor, patch, pin, pinDigest, digest updates (low-risk, non-major)",
       "matchUpdateTypes": [
         "minor",
         "patch",
         "pin",
+        "pinDigest",
         "digest"
       ],
       "automerge": true
@@ -76,6 +78,7 @@
       ],
       "matchUpdateTypes": [
         "pin",
+        "pinDigest",
         "digest"
       ],
       "minimumReleaseAge": "0 days"

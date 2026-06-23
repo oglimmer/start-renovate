@@ -389,7 +389,14 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
   // non-major so a major never inherits a groupName and folds back into the group
   // PR; it must reach the slow-lane gate (4) on its own instead. Grouping is
   // orthogonal to automerge, so a grouped non-major still automerges via rule (2).
-  const nonMajorUpdateTypes = ['minor', 'patch', 'pin', 'digest']
+  //
+  // 'pinDigest' is what the pinning presets (docker:pinDigests,
+  // helpers:pinGitHubActionDigests) emit when they FIRST add a digest to a tag —
+  // it is a SEPARATE Renovate update type from 'pin' (version range → exact) and
+  // 'digest' (refresh an already-pinned digest). Omitting it is the bug that left
+  // Docker digest pins ungrouped, un-automerged ("Automerge: Disabled by config")
+  // and stuck on the release-age check. All three are low-risk and belong together.
+  const nonMajorUpdateTypes = ['minor', 'patch', 'pin', 'pinDigest', 'digest']
 
   if (config.groupAllNonMajor) {
     // The {{manager}} template expands to a separate group per manager Renovate
@@ -444,8 +451,8 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
       // branch-automerge path instead of opening human-merged PRs. The 0.x safety
       // block (3) below still applies and wins via later-rule precedence.
       const matchUpdateTypes = config.automergeLevel === 'patch'
-        ? ['patch', 'pin', 'digest']
-        : ['minor', 'patch', 'pin', 'digest']
+        ? ['patch', 'pin', 'pinDigest', 'digest']
+        : ['minor', 'patch', 'pin', 'pinDigest', 'digest']
 
       configObject.packageRules.push({
         description: `Automerge ${matchUpdateTypes.join(', ')} updates (low-risk, non-major)`,
@@ -512,7 +519,7 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
       configObject.packageRules.push({
         description: 'No release-age delay on Docker digest pins — a pin records which image a tag resolves to, not a new version (version bumps keep their soak)',
         matchDatasources: ['docker'],
-        matchUpdateTypes: ['pin', 'digest'],
+        matchUpdateTypes: ['pin', 'pinDigest', 'digest'],
         minimumReleaseAge: '0 days'
       })
     }
