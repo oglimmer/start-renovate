@@ -12,9 +12,6 @@
   ],
   "configMigration": true,
   "timezone": "Europe/Berlin",
-  "schedule": [
-    "before 5am on monday"
-  ],
   "prHourlyLimit": 10,
   "prConcurrentLimit": 20,
   "rebaseWhen": "behind-base-branch",
