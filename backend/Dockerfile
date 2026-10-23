@@ -1,5 +1,5 @@
 # Build stage
-FROM eclipse-temurin:25.0.2_10-jdk-jammy AS build
+FROM eclipse-temurin:25.0.4_7-jdk-jammy@sha256:0cbcd13ae550a9c8334d5ef4483a4247625f47067f16127e28638fdafaeb35ea AS build
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ COPY src/ ./src/
 RUN ./mvnw clean package -DskipTests
 
 # Runtime stage
-FROM eclipse-temurin:25.0.2_10-jre-jammy
+FROM eclipse-temurin:25.0.4_7-jre-jammy@sha256:abed22bb0186ab4554c339fa41e0a361daed337b938929c95a1f2e4a228c1935
 
 # Install curl for health check, then clean up to reduce image size
 RUN apt-get update && \
