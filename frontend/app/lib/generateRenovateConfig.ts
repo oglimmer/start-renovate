@@ -532,16 +532,19 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
       matchCurrentValue: '/^latest$/',
       pinDigests: false
     })
-    // Only cancel a delay that actually exists (mirrors the vulnerabilityAlerts
-    // override below): with no global minimumReleaseAge there is nothing to cancel.
-    if (config.minimumReleaseAge !== 'never') {
-      configObject.packageRules.push({
-        description: 'No release-age delay on Docker digest pins — a pin records which image a tag resolves to, not a new version (version bumps keep their soak)',
-        matchDatasources: ['docker'],
-        matchUpdateTypes: ['pin', 'pinDigest', 'digest'],
-        minimumReleaseAge: '0 days'
-      })
-    }
+  }
+  // The same stuck-pin problem hits GitHub Actions SHA pins (seen in a real repo:
+  // the group "pin dependencies" PR sat on renovate/stability-days), so the
+  // cancel is NOT scoped to Docker. Only cancel a delay that actually exists
+  // (mirrors the vulnerabilityAlerts override below).
+  const anyDigestPinning = config.pinning.dockerDigests || config.pinning.githubActionDigests
+  if (anyDigestPinning && config.minimumReleaseAge !== 'never') {
+    configObject.packageRules = configObject.packageRules || []
+    configObject.packageRules.push({
+      description: 'No release-age delay on digest pins (Docker images, GitHub Actions) — a pin records which artifact a tag resolves to, not a new version (version bumps keep their soak)',
+      matchUpdateTypes: ['pin', 'pinDigest', 'digest'],
+      minimumReleaseAge: '0 days'
+    })
   }
 
   // (4) Slow lane — keep major updates off the automerge path and out of the PR

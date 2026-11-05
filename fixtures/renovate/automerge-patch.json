@@ -79,10 +79,7 @@
       "pinDigests": false
     },
     {
-      "description": "No release-age delay on Docker digest pins — a pin records which image a tag resolves to, not a new version (version bumps keep their soak)",
-      "matchDatasources": [
-        "docker"
-      ],
+      "description": "No release-age delay on digest pins (Docker images, GitHub Actions) — a pin records which artifact a tag resolves to, not a new version (version bumps keep their soak)",
       "matchUpdateTypes": [
         "pin",
         "pinDigest",

@@ -153,8 +153,8 @@ describe('buildRenovateConfig — vulnerability alert release-age override', () 
       Array.isArray(r.matchDatasources) && (r.matchDatasources as string[]).includes('docker')
       && r.matchCurrentValue === '/^latest$/'
     const isDigestAge = (r: Record<string, unknown>) =>
-      Array.isArray(r.matchDatasources) && (r.matchDatasources as string[]).includes('docker')
-      && Array.isArray(r.matchUpdateTypes) && (r.matchUpdateTypes as string[]).includes('digest')
+      Array.isArray(r.matchUpdateTypes) && (r.matchUpdateTypes as string[]).includes('digest')
+      && r.minimumReleaseAge === '0 days'
 
     // dockerDigests on + a global delay → :latest is never pinned (and carries no
     // release-age key itself), and digest/pin updates get the delay cancelled.
@@ -183,6 +183,16 @@ describe('buildRenovateConfig — vulnerability alert release-age override', () 
     const off = rulesFor({ pinning: { dockerDigests: false, githubActionDigests: false, devDependencies: false } })
     expect(off.find(isLatest)).toBeUndefined()
     expect(off.find(isDigestAge)).toBeUndefined()
+  })
+
+  it('cancels the release-age delay for GitHub Actions SHA pins too, not only Docker', () => {
+    const rules = (buildRenovateConfig(makeConfig({
+      pinning: { dockerDigests: false, githubActionDigests: true, devDependencies: false },
+      minimumReleaseAge: '7-days'
+    })).packageRules ?? []) as Record<string, unknown>[]
+    const rule = rules.find(r => r.minimumReleaseAge === '0 days')
+    expect(rule).toMatchObject({ matchUpdateTypes: ['pin', 'pinDigest', 'digest'] })
+    expect(rule).not.toHaveProperty('matchDatasources')
   })
 })
 
