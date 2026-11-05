@@ -60,7 +60,7 @@ public class RenovateConfigAnalyzer {
     out.put("schedule", scheduleOption(root.get("schedule")));
     out.put("prLimitStrategy", prLimitStrategy(root));
     out.put("rebaseWhen", stringOption(root, "rebaseWhen"));
-    out.put("rangeStrategy", stringOption(root, "rangeStrategy"));
+    out.put("rangeStrategy", rangeStrategy(root, rules));
     out.put("automergeType", stringOption(root, "automergeType"));
     out.put("automergeLevel", automergeLevel(root, rules));
     out.put("automergeDevDependencies", automergeDevDependencies(rules));
@@ -287,6 +287,22 @@ public class RenovateConfigAnalyzer {
       return CellState.unset();
     }
     return node.isTextual() ? CellState.on(node.asText()) : CellState.custom(node.toString());
+  }
+
+  /**
+   * Top-level rangeStrategy, or else the one the generator scopes into a packageRule (it no longer
+   * emits it top-level: there it would also rewrite Docker tags, engines and CI node-version).
+   */
+  private CellState rangeStrategy(JsonNode root, List<JsonNode> rules) {
+    if (root.hasNonNull("rangeStrategy")) {
+      return stringOption(root, "rangeStrategy");
+    }
+    for (JsonNode rule : rules) {
+      if (rule.hasNonNull("rangeStrategy")) {
+        return stringOption(rule, "rangeStrategy");
+      }
+    }
+    return CellState.unset();
   }
 
   private CellState booleanFlag(JsonNode root, String field) {

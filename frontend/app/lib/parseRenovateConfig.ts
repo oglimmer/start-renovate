@@ -101,6 +101,12 @@ export const parseRenovateJson = (jsonString: string): Partial<RenovateConfig> =
     ) as RenovateConfig['grouping']
 
     for (const rule of parsed.packageRules) {
+      // A rangeStrategy scoped in a packageRule (what the generator emits) counts
+      // as the config's strategy unless a top-level one was already set.
+      if (rule.rangeStrategy && !parsed.rangeStrategy) {
+        result.rangeStrategy = rule.rangeStrategy
+      }
+
       // Check for automerge rules
       if (rule.automerge === true) {
         if (rule.matchUpdateTypes) {

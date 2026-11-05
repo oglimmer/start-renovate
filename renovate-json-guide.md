@@ -66,8 +66,14 @@ Two official starting points:
   "prConcurrentLimit": 10,
   "labels": ["dependencies"],
   "dependencyDashboard": true,
-  "rangeStrategy": "bump",
-  "configMigration": true
+  "configMigration": true,
+  "packageRules": [
+    {
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["dependencies", "devDependencies", "optionalDependencies"],
+      "rangeStrategy": "bump"
+    }
+  ]
 }
 ```
 
@@ -219,6 +225,7 @@ Controls what Renovate writes back into your manifest. Default in `config:recomm
 | `update-lockfile` | Update lockfile only, leave manifest range alone | When the lockfile is the source of truth |
 | `auto` | Renovate picks per ecosystem | Default; fine to keep |
 
+- **DO** scope `bump`/`pin` to package ranges with a `packageRule` (`matchManagers: ["npm"]`, `matchDepTypes: ["dependencies", "devDependencies", "optionalDependencies"]`). At the top level they also rewrite floating values in other managers: Docker `node:26-slim` → `node:26.12.1-slim` (with `minimumReleaseAge` that can be a downgrade), CI `node-version: 26` → `26.13.0`, `engines` `>=26` → `>=26.13.0`.
 - **DO** use `pin` (or commit lockfiles) for apps; `widen` for `peerDependencies` (preset `:widenPeerDependencies`).
 - **DON'T** `pin` a library you publish — it over-constrains downstream consumers.
 

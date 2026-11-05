@@ -75,7 +75,7 @@ export const rangeOptions: RadioOption<RenovateConfig['rangeStrategy']>[] = [
     value: 'bump',
     label: 'Always Bump Range',
     description:
-      'Explicitly update ranges for every change. Example: <code class="bg-gray-100 px-1 rounded">^1.0.0</code> → <code class="bg-gray-100 px-1 rounded">^1.0.1</code>. Makes all updates visible in package.json.'
+      'Explicitly update ranges for every change. Example: <code class="bg-gray-100 px-1 rounded">^1.0.0</code> → <code class="bg-gray-100 px-1 rounded">^1.0.1</code>. Makes all updates visible in package.json. Applied to npm dependency ranges only, so Docker tags, engines and CI node-version are not rewritten to exact versions.'
   },
   {
     value: 'update-lockfile',

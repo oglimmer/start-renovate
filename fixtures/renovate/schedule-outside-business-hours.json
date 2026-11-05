@@ -20,9 +20,20 @@
   "prHourlyLimit": 10,
   "prConcurrentLimit": 20,
   "rebaseWhen": "behind-base-branch",
-  "rangeStrategy": "bump",
   "automergeType": "branch",
   "packageRules": [
+    {
+      "description": "rangeStrategy \"bump\" for npm dependency ranges only — Docker tags, engines and CI node-version keep their own precision",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchDepTypes": [
+        "dependencies",
+        "devDependencies",
+        "optionalDependencies"
+      ],
+      "rangeStrategy": "bump"
+    },
     {
       "description": "Group each manager's non-major updates into one PR per manager",
       "matchUpdateTypes": [

@@ -277,6 +277,13 @@ export const renovateDefaultsConfig: RenovateConfig = {
   }
 }
 
+// Where the chosen rangeStrategy applies (see buildRenovateConfig). Shared with
+// the parser so import detection can't drift from emission.
+export const RANGE_STRATEGY_SCOPE = {
+  matchManagers: ['npm'],
+  matchDepTypes: ['dependencies', 'devDependencies', 'optionalDependencies']
+} as const
+
 // Selectable starting points for the form. Each preset is a full RenovateConfig
 // the user can load and then tweak. `oglimmer` is the opinionated, hardened
 // default (== defaultRenovateConfig, the single source of truth shared with the
@@ -367,12 +374,24 @@ export function buildRenovateConfig(config: RenovateConfig): Record<string, any>
     configObject.rebaseWhen = config.rebaseWhen
   }
 
-  if (config.rangeStrategy !== 'auto') {
-    configObject.rangeStrategy = config.rangeStrategy
-  }
-
   if (config.automergeType !== 'pr') {
     configObject.automergeType = config.automergeType
+  }
+
+  // rangeStrategy is a package-range concept (^1.2.0, ~1.2). Set at the top level
+  // it also hits every other manager, and 'bump'/'pin' there rewrite FLOATING
+  // values to exact ones: Docker node:26-slim → node:26.12.1-slim (with a release
+  // age delay that is even a DOWNGRADE of what the tag already points to), CI
+  // node-version 26 → 26.13.0, package.json engines >=26 → >=26.13.0. So scope it
+  // to real npm dependency ranges and let every other manager keep 'auto'.
+  if (config.rangeStrategy !== 'auto') {
+    configObject.packageRules = configObject.packageRules || []
+    configObject.packageRules.push({
+      description: `rangeStrategy "${config.rangeStrategy}" for npm dependency ranges only — Docker tags, engines and CI node-version keep their own precision`,
+      matchManagers: [...RANGE_STRATEGY_SCOPE.matchManagers],
+      matchDepTypes: [...RANGE_STRATEGY_SCOPE.matchDepTypes],
+      rangeStrategy: config.rangeStrategy
+    })
   }
 
   // === packageRules are emitted in a deliberate top-to-bottom order so the file

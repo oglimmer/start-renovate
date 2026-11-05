@@ -10,6 +10,7 @@ import {
   renovateDefaultsConfig,
   type RenovateConfig
 } from './generateRenovateConfig'
+import { parseRenovateJson } from './parseRenovateConfig'
 
 function makeConfig(overrides: Partial<RenovateConfig> = {}): RenovateConfig {
   const base: RenovateConfig = {
@@ -182,6 +183,38 @@ describe('buildRenovateConfig — vulnerability alert release-age override', () 
     const off = rulesFor({ pinning: { dockerDigests: false, githubActionDigests: false, devDependencies: false } })
     expect(off.find(isLatest)).toBeUndefined()
     expect(off.find(isDigestAge)).toBeUndefined()
+  })
+})
+
+describe('buildRenovateConfig — rangeStrategy scope', () => {
+  // Top-level "bump" rewrote floating values in a real repo: node:26-slim →
+  // node:26.12.1-slim (a downgrade under the release-age delay), CI
+  // node-version 26 → 26.13.0 and engines >=26 → >=26.13.0.
+  it('never emits rangeStrategy at the top level', () => {
+    for (const s of ['bump', 'pin', 'replace', 'widen', 'update-lockfile'] as const) {
+      expect(buildRenovateConfig({ ...defaultRenovateConfig, rangeStrategy: s }).rangeStrategy).toBeUndefined()
+    }
+  })
+
+  it('scopes the chosen strategy to npm dependency ranges (not engines, not Docker, not CI)', () => {
+    const out = buildRenovateConfig({ ...defaultRenovateConfig, rangeStrategy: 'bump' })
+    const rules = out.packageRules.filter((r: { rangeStrategy?: string }) => r.rangeStrategy)
+    expect(rules).toHaveLength(1)
+    expect(rules[0]).toMatchObject({
+      matchManagers: ['npm'],
+      matchDepTypes: ['dependencies', 'devDependencies', 'optionalDependencies'],
+      rangeStrategy: 'bump'
+    })
+  })
+
+  it('emits no rangeStrategy rule for "auto"', () => {
+    const out = buildRenovateConfig({ ...defaultRenovateConfig, rangeStrategy: 'auto' })
+    expect((out.packageRules ?? []).some((r: { rangeStrategy?: string }) => r.rangeStrategy)).toBe(false)
+  })
+
+  it('round-trips through the importer', () => {
+    const json = generateRenovateConfigJson({ ...defaultRenovateConfig, rangeStrategy: 'bump' })
+    expect(parseRenovateJson(json).rangeStrategy).toBe('bump')
   })
 })
 

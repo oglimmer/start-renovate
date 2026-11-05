@@ -13,7 +13,7 @@ import {
 // start-renovate is a renovate.json generator, so its own committed config has to
 // be something the tool actually emits — never a hand-edit that drifts from what
 // users would get. This is THE_REPO_CONFIG: the oglimmer hardened profile (the
-// shared single source of truth) with one deviation — a weekly schedule.
+// shared single source of truth), unchanged.
 //
 // The guard below regenerates renovate.json in-memory and asserts the committed
 // file matches byte-for-byte, so any generator change that would alter our own
@@ -22,11 +22,7 @@ import {
 // both this file and the fixtures corpus together. Mirrors renovateFixtures.spec.ts.
 // ===========================================================================
 
-export const THE_REPO_CONFIG: RenovateConfig = {
-  ...structuredClone(defaultRenovateConfig),
-  // Updates land in one weekly batch (before 5am Monday) rather than continuously.
-  schedule: 'weekly'
-}
+export const THE_REPO_CONFIG: RenovateConfig = structuredClone(defaultRenovateConfig)
 
 const REPO_RENOVATE_JSON = fileURLToPath(new URL('../../../renovate.json', import.meta.url))
 const UPDATE = process.env.UPDATE_FIXTURES === '1'
